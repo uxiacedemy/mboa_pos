@@ -86,6 +86,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         final item = cart[index];
         final movement = StockMovement(
           id: uuid.v4(),
+          organizationId: organizationId,
           productId: item.product.id,
           quantity: -item.quantity,
           type: StockMovementType.saleDeduction,

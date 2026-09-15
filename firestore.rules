@@ -36,8 +36,12 @@ service cloud.firestore {
 
       match /products/{productId} {
         allow read: if memberOf(orgId);
-        allow create, update: if memberOf(orgId)
+        allow create: if memberOf(orgId)
           && roleAtLeast('manager');
+        allow update: if memberOf(orgId)
+          && roleAtLeast('cashier')
+          && request.resource.data.organizationId == orgId
+          && request.resource.data.stockQty is int;
         allow delete: if false;
       }
 
@@ -69,9 +73,9 @@ service cloud.firestore {
         allow read: if memberOf(orgId)
           && roleAtLeast('manager');
         allow create: if memberOf(orgId)
-          && roleAtLeast('supervisor')
+          && roleAtLeast('cashier')
           && request.resource.data.organizationId == orgId
-          && request.resource.data.performedBy == request.auth.uid;
+          && request.resource.data.actorId == request.auth.uid;
         allow update, delete: if false;
       }
 

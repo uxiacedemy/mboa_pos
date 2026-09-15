@@ -19,6 +19,7 @@ abstract class StockMovement with _$StockMovement {
 
   const factory StockMovement({
     required String id,
+    required String organizationId,
     required String productId,
     required int quantity,
     required StockMovementType type,
@@ -29,6 +30,7 @@ abstract class StockMovement with _$StockMovement {
 
   Map<String, dynamic> toFirestore() => {
         'id': id,
+        'organizationId': organizationId,
         'productId': productId,
         'quantity': quantity,
         'type': type.name,

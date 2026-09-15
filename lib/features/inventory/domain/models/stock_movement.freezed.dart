@@ -15,6 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$StockMovement {
   String get id;
+  String get organizationId;
   String get productId;
   int get quantity;
   StockMovementType get type;
@@ -36,6 +37,8 @@ mixin _$StockMovement {
         (other.runtimeType == runtimeType &&
             other is StockMovement &&
             (identical(other.id, id) || other.id == id) &&
+            (identical(other.organizationId, organizationId) ||
+                other.organizationId == organizationId) &&
             (identical(other.productId, productId) ||
                 other.productId == productId) &&
             (identical(other.quantity, quantity) ||
@@ -49,12 +52,12 @@ mixin _$StockMovement {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, productId, quantity, type,
-      actorId, deviceId, occurredAt);
+  int get hashCode => Object.hash(runtimeType, id, organizationId, productId,
+      quantity, type, actorId, deviceId, occurredAt);
 
   @override
   String toString() {
-    return 'StockMovement(id: $id, productId: $productId, quantity: $quantity, type: $type, actorId: $actorId, deviceId: $deviceId, occurredAt: $occurredAt)';
+    return 'StockMovement(id: $id, organizationId: $organizationId, productId: $productId, quantity: $quantity, type: $type, actorId: $actorId, deviceId: $deviceId, occurredAt: $occurredAt)';
   }
 }
 
@@ -66,6 +69,7 @@ abstract mixin class $StockMovementCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
+      String organizationId,
       String productId,
       int quantity,
       StockMovementType type,
@@ -88,6 +92,7 @@ class _$StockMovementCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = null,
+    Object? organizationId = null,
     Object? productId = null,
     Object? quantity = null,
     Object? type = null,
@@ -99,6 +104,10 @@ class _$StockMovementCopyWithImpl<$Res>
       id: null == id
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      organizationId: null == organizationId
+          ? _self.organizationId
+          : organizationId // ignore: cast_nullable_to_non_nullable
               as String,
       productId: null == productId
           ? _self.productId
@@ -223,6 +232,7 @@ extension StockMovementPatterns on StockMovement {
   TResult maybeWhen<TResult extends Object?>(
     TResult Function(
             String id,
+            String organizationId,
             String productId,
             int quantity,
             StockMovementType type,
@@ -235,8 +245,15 @@ extension StockMovementPatterns on StockMovement {
     final _that = this;
     switch (_that) {
       case _StockMovement() when $default != null:
-        return $default(_that.id, _that.productId, _that.quantity, _that.type,
-            _that.actorId, _that.deviceId, _that.occurredAt);
+        return $default(
+            _that.id,
+            _that.organizationId,
+            _that.productId,
+            _that.quantity,
+            _that.type,
+            _that.actorId,
+            _that.deviceId,
+            _that.occurredAt);
       case _:
         return orElse();
     }
@@ -259,6 +276,7 @@ extension StockMovementPatterns on StockMovement {
   TResult when<TResult extends Object?>(
     TResult Function(
             String id,
+            String organizationId,
             String productId,
             int quantity,
             StockMovementType type,
@@ -270,8 +288,15 @@ extension StockMovementPatterns on StockMovement {
     final _that = this;
     switch (_that) {
       case _StockMovement():
-        return $default(_that.id, _that.productId, _that.quantity, _that.type,
-            _that.actorId, _that.deviceId, _that.occurredAt);
+        return $default(
+            _that.id,
+            _that.organizationId,
+            _that.productId,
+            _that.quantity,
+            _that.type,
+            _that.actorId,
+            _that.deviceId,
+            _that.occurredAt);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -293,6 +318,7 @@ extension StockMovementPatterns on StockMovement {
   TResult? whenOrNull<TResult extends Object?>(
     TResult? Function(
             String id,
+            String organizationId,
             String productId,
             int quantity,
             StockMovementType type,
@@ -304,8 +330,15 @@ extension StockMovementPatterns on StockMovement {
     final _that = this;
     switch (_that) {
       case _StockMovement() when $default != null:
-        return $default(_that.id, _that.productId, _that.quantity, _that.type,
-            _that.actorId, _that.deviceId, _that.occurredAt);
+        return $default(
+            _that.id,
+            _that.organizationId,
+            _that.productId,
+            _that.quantity,
+            _that.type,
+            _that.actorId,
+            _that.deviceId,
+            _that.occurredAt);
       case _:
         return null;
     }
@@ -317,6 +350,7 @@ extension StockMovementPatterns on StockMovement {
 class _StockMovement extends StockMovement {
   const _StockMovement(
       {required this.id,
+      required this.organizationId,
       required this.productId,
       required this.quantity,
       required this.type,
@@ -327,6 +361,8 @@ class _StockMovement extends StockMovement {
 
   @override
   final String id;
+  @override
+  final String organizationId;
   @override
   final String productId;
   @override
@@ -354,6 +390,8 @@ class _StockMovement extends StockMovement {
         (other.runtimeType == runtimeType &&
             other is _StockMovement &&
             (identical(other.id, id) || other.id == id) &&
+            (identical(other.organizationId, organizationId) ||
+                other.organizationId == organizationId) &&
             (identical(other.productId, productId) ||
                 other.productId == productId) &&
             (identical(other.quantity, quantity) ||
@@ -367,12 +405,12 @@ class _StockMovement extends StockMovement {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, productId, quantity, type,
-      actorId, deviceId, occurredAt);
+  int get hashCode => Object.hash(runtimeType, id, organizationId, productId,
+      quantity, type, actorId, deviceId, occurredAt);
 
   @override
   String toString() {
-    return 'StockMovement(id: $id, productId: $productId, quantity: $quantity, type: $type, actorId: $actorId, deviceId: $deviceId, occurredAt: $occurredAt)';
+    return 'StockMovement(id: $id, organizationId: $organizationId, productId: $productId, quantity: $quantity, type: $type, actorId: $actorId, deviceId: $deviceId, occurredAt: $occurredAt)';
   }
 }
 
@@ -386,6 +424,7 @@ abstract mixin class _$StockMovementCopyWith<$Res>
   @useResult
   $Res call(
       {String id,
+      String organizationId,
       String productId,
       int quantity,
       StockMovementType type,
@@ -408,6 +447,7 @@ class __$StockMovementCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   $Res call({
     Object? id = null,
+    Object? organizationId = null,
     Object? productId = null,
     Object? quantity = null,
     Object? type = null,
@@ -419,6 +459,10 @@ class __$StockMovementCopyWithImpl<$Res>
       id: null == id
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      organizationId: null == organizationId
+          ? _self.organizationId
+          : organizationId // ignore: cast_nullable_to_non_nullable
               as String,
       productId: null == productId
           ? _self.productId
