@@ -116,6 +116,8 @@ For every data-driven screen, provide explicit loading, error with retry, empty,
 
 ## Change workflow
 
+New terminal sessions default to `C:\Windows\system32` — always confirm `pwd`/`Get-Location` before running git or Flutter commands directly.
+
 1. Identify the owning provider, repository, model, route, or security rule before editing.
 2. Read the nearest implementation and test; distinguish implemented behavior from planned behavior.
 	State which file(s) you opened and what you found before describing any feature as implemented.
