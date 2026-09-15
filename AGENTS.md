@@ -53,6 +53,8 @@ This is the current Gate 1 baseline. Update this table whenever a feature is ver
 
 The current persistence target is deliberately limited to the minimum single-terminal Phase 3 flow: one product document, one guarded stock decrement, and one transaction record. Do not expand this work into Phase 4/5 infrastructure such as multi-branch synchronization, sharded counters, or Cloud Functions.
 
+Phase 3 minimal auth = single-role PIN login only (`{staffId}@mboapos.internal` + PIN via Firebase Auth), populating real `actorId`/`deviceId`/`organizationId` in `payment_screen.dart`. Full `StaffRole` hierarchy (cashier/supervisor/manager/admin) and GoRouter role guards are explicitly Phase 3-later / Gate-1-adjacent, not part of this task.
+
 ## Non-negotiable domain rules
 
 ### Money and tax
