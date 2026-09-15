@@ -20,7 +20,7 @@ class PaymentScreen extends ConsumerStatefulWidget {
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   final _discountController  = TextEditingController(text: '0');
   final _deliveryController  = TextEditingController(text: '0');
-  final _taxRateController   = TextEditingController(text: '0');
+  final _taxRateController   = TextEditingController(text: '19.25');
   String _paymentMethod      = 'cash';
   bool _taxIncluded          = false;
 
@@ -34,11 +34,22 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   int get _discount  => int.tryParse(_discountController.text)  ?? 0;
   int get _delivery  => int.tryParse(_deliveryController.text)  ?? 0;
-  double get _taxRate => (double.tryParse(_taxRateController.text) ?? 0) / 100;
+  int get _taxRateBasisPoints {
+    final value = _taxRateController.text.trim().replaceAll(',', '.');
+    final parts = value.split('.');
+    final whole = int.tryParse(parts.first) ?? 0;
+    final fraction = parts.length > 1
+        ? parts[1].padRight(2, '0').substring(0, 2)
+        : '00';
+    return whole * 100 + (int.tryParse(fraction) ?? 0);
+  }
+
+  int _taxFor(int taxableAmount) =>
+      (taxableAmount * _taxRateBasisPoints + 5000) ~/ 10000;
 
   int _calculate(int subtotal) {
     final afterDiscount = (subtotal - _discount).clamp(0, subtotal);
-    final tax      = _taxIncluded ? (afterDiscount * _taxRate).round() : 0;
+    final tax      = _taxIncluded ? _taxFor(afterDiscount) : 0;
     return afterDiscount + tax + _delivery;
   }
 
@@ -54,14 +65,25 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     const deviceId = 'local-device';
     final db = FirebaseFirestore.instance;
     final uuid = const Uuid();
-
-    await db.runTransaction((txn) async {
-      for (final item in cart) {
-        final productRef = db
+    final saleId = uuid.v4();
+    final productRefs = [
+      for (final item in cart)
+        db
             .collection('organizations')
             .doc(organizationId)
             .collection('products')
-            .doc(item.product.id);
+            .doc(item.product.id),
+    ];
+
+    await db.runTransaction((txn) async {
+      final snapshots = [
+        for (final productRef in productRefs) await txn.get(productRef),
+      ];
+
+      final movements = <({DocumentReference<Map<String, dynamic>> ref,
+          StockMovement movement})>[];
+      for (var index = 0; index < cart.length; index++) {
+        final item = cart[index];
         final movement = StockMovement(
           id: uuid.v4(),
           productId: item.product.id,
@@ -76,7 +98,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             .doc(organizationId)
             .collection('inventory_adjustments')
             .doc(movement.id);
-        final snap = await txn.get(productRef);
+          final snap = snapshots[index];
         final current = snap.data()?['stockQty'] as int? ?? 0;
         if (current < item.quantity) {
           throw InsufficientStockException(
@@ -85,11 +107,48 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             available: current,
           );
         }
-        txn.update(productRef, {
-          'stockQty': FieldValue.increment(-item.quantity),
-        });
-        txn.set(movementRef, movement.toFirestore());
+        movements.add((ref: movementRef, movement: movement));
       }
+
+      for (var index = 0; index < cart.length; index++) {
+        txn.update(productRefs[index], {
+          'stockQty': FieldValue.increment(-cart[index].quantity),
+        });
+      }
+      for (final entry in movements) {
+        txn.set(entry.ref, entry.movement.toFirestore());
+      }
+      txn.set(
+        db
+            .collection('organizations')
+            .doc(organizationId)
+            .collection('transactions')
+            .doc(saleId),
+        {
+          'id': saleId,
+          'organizationId': organizationId,
+          'cashierId': 'local-cashier',
+          'status': 'completed',
+          'subtotalFCFA': subtotal,
+          'discountFCFA': _discount,
+          'deliveryFCFA': _delivery,
+          'taxFCFA': _taxIncluded ? _taxFor((subtotal - _discount).clamp(0, subtotal)) : 0,
+          'taxRateBasisPoints': _taxRateBasisPoints,
+          'totalFCFA': total,
+          'paymentMethod': _paymentMethod,
+          'items': [
+            for (final item in cart)
+              {
+                'productId': item.product.id,
+                'name': item.product.name,
+                'quantity': item.quantity,
+                'unitPriceFCFA': item.product.priceFCFA,
+                'subtotalFCFA': item.subtotalFCFA,
+              },
+          ],
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+      );
     });
 
     if (!mounted) return;
@@ -232,7 +291,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   ],
                 ),
 
-                if (_taxIncluded && _taxRate > 0) ...[
+                if (_taxIncluded && _taxRateBasisPoints > 0) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -244,10 +303,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                         ),
                       ),
                       Text(
-                        _fmt((
-                          (subtotal - _discount).clamp(0, subtotal) *
-                          _taxRate
-                        ).round()),
+                        _fmt(_taxFor(
+                          (subtotal - _discount).clamp(0, subtotal),
+                        )),
                         style: AppTypography.bodySmall.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
