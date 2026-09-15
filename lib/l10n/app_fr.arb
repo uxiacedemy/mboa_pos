@@ -1,0 +1,36 @@
+{
+  "@@locale": "fr",
+  "appTitle": "MboaPOS",
+  "posTitle": "Nouvelle Vente",
+  "searchHint": "Rechercher ou scanner...",
+  "encaisser": "Encaisser",
+  "cartEmpty": "Panier vide",
+  "noProducts": "Aucun produit disponible",
+  "noResults": "Aucun résultat pour \"{query}\"",
+  "@noResults": {
+    "placeholders": {
+      "query": { "type": "String" }
+    }
+  },
+  "articles": "{count} article(s)",
+  "@articles": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "synced": "Synchronisé",
+  "pending": "En attente",
+  "offline": "Hors ligne",
+  "conflict": "Conflit",
+  "navSales": "Ventes",
+  "navInventory": "Inventaire",
+  "navReports": "Rapports",
+  "navSettings": "Paramètres",
+  "loginTitle": "Connexion",
+  "loginSubtitle": "Point de Vente Intelligent",
+  "emailLabel": "Email",
+  "passwordLabel": "Mot de passe",
+  "loginButton": "Se connecter",
+  "comingSoon": "Bientôt disponible",
+  "paymentComingSoon": "Paiement — bientôt disponible"
+}
