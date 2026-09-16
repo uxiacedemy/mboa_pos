@@ -1,9 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/design/design_tokens.dart';
+import '../providers/auth_provider.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _staffIdController = TextEditingController();
+  final _pinController = TextEditingController();
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _staffIdController.dispose();
+    _pinController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signIn() async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+    try {
+      await ref.read(authProvider.notifier).signIn(
+            staffId: _staffIdController.text.trim(),
+            pin: _pinController.text,
+          );
+      if (mounted) context.go('/pos');
+    } catch (error) {
+      if (mounted) {
+        setState(() => _errorMessage = error.toString());
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +75,9 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xxl),
               TextFormField(
+                controller: _staffIdController,
                 decoration: InputDecoration(
-                  labelText: 'Email',
+                  labelText: 'Identifiant staff',
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(borderRadius: AppRadius.input),
                 ),
@@ -45,20 +85,30 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               TextFormField(
+                controller: _pinController,
                 decoration: InputDecoration(
-                  labelText: 'Mot de passe',
+                  labelText: 'PIN',
                   prefixIcon: const Icon(Icons.lock_outlined),
                   border: OutlineInputBorder(borderRadius: AppRadius.input),
                 ),
                 obscureText: true,
               ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _errorMessage!,
+                  style: TextStyle(color: colorScheme.error),
+                ),
+              ],
               const SizedBox(height: AppSpacing.xl),
               FilledButton(
-                onPressed: () => context.go('/pos'),
+                onPressed: _isSubmitting ? null : _signIn,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size(double.infinity, AppSpacing.buttonHeight),
                 ),
-                child: const Text('Se connecter', style: AppTypography.buttonLabel),
+                child: _isSubmitting
+                  ? const CircularProgressIndicator()
+                  : const Text('Se connecter', style: AppTypography.buttonLabel),
               ),
             ],
           ),

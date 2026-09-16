@@ -42,7 +42,7 @@ This is the current Gate 1 baseline. Update this table whenever a feature is ver
 | Drift persistence | Missing | No local database layer | 2026-09-15 |
 | Firebase initialization | Partial (SDK initialization added; platform project options are not configured) | Firebase platform configuration | 2026-09-15 |
 | Firestore wiring | Partial (Product mapping, StockMovement model, stock exception, and checkout transaction added; project configuration and repository boundaries remain) | Firebase project configuration and repository boundaries | 2026-09-15 |
-| Authentication | Missing | Auth implementation not started | 2026-09-15 |
+| Authentication | Partial (PIN sign-in, StaffUser session, and secure device ID added; session restoration and platform configuration remain) | Firebase platform configuration and staff claim provisioning | 2026-09-16 |
 | Stock deduction | Partial (guarded checkout transaction and movement write added) | Missing auth; no real staff identity to attach to actor/device fields | 2026-09-15 |
 | Receipt persistence | Missing | No receipt persistence layer | 2026-09-15 |
 | Receipt printing | Missing | No printer integration | 2026-09-15 |
@@ -131,7 +131,7 @@ New terminal sessions default to `C:\Windows\system32` — always confirm `pwd`/
 ## Remaining Build Order
 
 - [ ] (1) Firestore rules emulator validation for Stage 2 changes — Deferred: verify manually via staging Firestore project before first real merchant; not blocking local development
-- [ ] (2) Minimal auth — staff PIN login, StaffUser session, route redirect
+- [ ] (2) Minimal auth — staff PIN login, StaffUser session, route redirect — Partial: sign-in/session/device identity added; session restoration and route guard remain
 - [ ] (3) Thread real organizationId/actorId/deviceId into payment_screen.dart
 - [ ] (4) Idempotency key on checkout transaction
 - [ ] (5) Confirm-button loading/disabled state during async transaction

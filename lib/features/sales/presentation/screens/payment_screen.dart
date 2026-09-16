@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/design/design_tokens.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../inventory/domain/errors/insufficient_stock_exception.dart';
 import '../../../inventory/domain/models/stock_movement.dart';
 import '../providers/cart_provider.dart';
@@ -61,8 +62,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     List<CartItem> cart,
     int subtotal,
   ) async {
-    const organizationId = 'default';
-    const deviceId = 'local-device';
+    final staffUser = ref.read(authProvider);
+    final deviceId = await ref.read(deviceIdProvider.future);
+    if (staffUser == null) {
+      throw StateError('No authenticated staff session.');
+    }
+    final organizationId = staffUser.organizationId;
     final db = FirebaseFirestore.instance;
     final uuid = const Uuid();
     final saleId = uuid.v4();
@@ -90,7 +95,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           productId: item.product.id,
           quantity: -item.quantity,
           type: StockMovementType.saleDeduction,
-          actorId: 'local-cashier',
+          actorId: staffUser.uid,
           deviceId: deviceId,
           occurredAt: DateTime.now(),
         );
@@ -128,7 +133,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         {
           'id': saleId,
           'organizationId': organizationId,
-          'cashierId': 'local-cashier',
+          'cashierId': staffUser.uid,
           'status': 'completed',
           'subtotalFCFA': subtotal,
           'discountFCFA': _discount,
