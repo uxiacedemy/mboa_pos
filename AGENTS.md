@@ -130,7 +130,7 @@ New terminal sessions default to `C:\Windows\system32` — always confirm `pwd`/
 
 ## Remaining Build Order
 
-- [ ] (1) Firestore rules emulator validation for Stage 2 changes
+- [ ] (1) Firestore rules emulator validation for Stage 2 changes — Deferred: verify manually via staging Firestore project before first real merchant; not blocking local development
 - [ ] (2) Minimal auth — staff PIN login, StaffUser session, route redirect
 - [ ] (3) Thread real organizationId/actorId/deviceId into payment_screen.dart
 - [ ] (4) Idempotency key on checkout transaction
