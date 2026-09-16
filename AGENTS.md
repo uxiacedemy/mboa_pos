@@ -128,4 +128,18 @@ New terminal sessions default to `C:\Windows\system32` — always confirm `pwd`/
 5. Run the narrowest useful check, then `flutter analyze` and relevant tests when practical.
 6. Report any unrelated pre-existing failures separately; do not silently work around them.
 
+## Remaining Build Order
+
+- [ ] (1) Firestore rules emulator validation for Stage 2 changes
+- [ ] (2) Minimal auth — staff PIN login, StaffUser session, route redirect
+- [ ] (3) Thread real organizationId/actorId/deviceId into payment_screen.dart
+- [ ] (4) Idempotency key on checkout transaction
+- [ ] (5) Confirm-button loading/disabled state during async transaction
+- [ ] (6) Drift offline persistence — products, pending sales, receipts, sync queue
+- [ ] (7) Receipt construction and persistence — numbering, NIU, TVA, timestamps
+- [ ] (8) Receipt printing/sharing
+- [ ] (9) Test suite — money/tax rounding, insufficient stock, multi-item checkout, idempotency, auth session, receipt numbering, offline recovery, rules emulator
+- [ ] (10) Localization wiring in main.dart + remove hardcoded strings
+- [ ] (11) Android signing/app config for release
+
 Do not build Phase 4 or Phase 5 features, including AI, multi-branch scaling, subscription billing, embedded finance, or live mobile-money collection, unless the request explicitly unlocks that phase.
