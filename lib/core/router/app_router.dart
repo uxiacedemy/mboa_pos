@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/shell/presentation/screens/main_shell.dart';
 import '../../features/sales/presentation/screens/pos_screen.dart';
 import '../../features/inventory/presentation/screens/inventory_screen.dart';
@@ -8,8 +9,16 @@ import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final staffUser = ref.watch(authProvider);
+
   return GoRouter(
     initialLocation: '/pos',
+    redirect: (context, state) {
+      final isProtectedRoute = state.uri.path == '/pos' ||
+          state.uri.path.startsWith('/sales');
+      if (isProtectedRoute && staffUser == null) return '/login';
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/login',

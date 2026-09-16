@@ -42,13 +42,13 @@ This is the current Gate 1 baseline. Update this table whenever a feature is ver
 | Drift persistence | Missing | No local database layer | 2026-09-15 |
 | Firebase initialization | Partial (SDK initialization added; platform project options are not configured) | Firebase platform configuration | 2026-09-15 |
 | Firestore wiring | Partial (Product mapping, StockMovement model, stock exception, and checkout transaction added; project configuration and repository boundaries remain) | Firebase project configuration and repository boundaries | 2026-09-15 |
-| Authentication | Partial (PIN sign-in, StaffUser session, and secure device ID added; session restoration and platform configuration remain) | Firebase platform configuration and staff claim provisioning | 2026-09-16 |
+| Authentication | Partial (PIN sign-in, StaffUser session, secure device ID, and auth-only route redirect added; session restoration and platform configuration remain) | Firebase platform configuration and staff claim provisioning | 2026-09-16 |
 | Stock deduction | Partial (guarded checkout transaction and movement write added) | Missing auth; no real staff identity to attach to actor/device fields | 2026-09-15 |
 | Receipt persistence | Missing | No receipt persistence layer | 2026-09-15 |
 | Receipt printing | Missing | No printer integration | 2026-09-15 |
 | Sync | Missing | No durable local queue or sync worker | 2026-09-15 |
 | Localization | Partial | Generated localization is not wired into `MaterialApp` and screens still contain hardcoded strings | 2026-09-15 |
-| Route guards | Missing | Authentication and role provider | 2026-09-15 |
+| Route guards | Partial (authentication-only redirect for POS/sales routes) | Session restoration; role checks are intentionally out of scope | 2026-09-16 |
 | Known minor issues | None; `flutter analyze` reports no issues | None | 2026-09-15 |
 
 The current persistence target is deliberately limited to the minimum single-terminal Phase 3 flow: one product document, one guarded stock decrement, and one transaction record. Do not expand this work into Phase 4/5 infrastructure such as multi-branch synchronization, sharded counters, or Cloud Functions.
@@ -131,15 +131,16 @@ New terminal sessions default to `C:\Windows\system32` — always confirm `pwd`/
 ## Remaining Build Order
 
 - [ ] (1) Firestore rules emulator validation for Stage 2 changes — Deferred: verify manually via staging Firestore project before first real merchant; not blocking local development
-- [ ] (2) Minimal auth — staff PIN login, StaffUser session, route redirect — Partial: sign-in/session/device identity added; session restoration and route guard remain
-- [ ] (3) Thread real organizationId/actorId/deviceId into payment_screen.dart
-- [ ] (4) Idempotency key on checkout transaction
-- [ ] (5) Confirm-button loading/disabled state during async transaction
-- [ ] (6) Drift offline persistence — products, pending sales, receipts, sync queue
-- [ ] (7) Receipt construction and persistence — numbering, NIU, TVA, timestamps
-- [ ] (8) Receipt printing/sharing
-- [ ] (9) Test suite — money/tax rounding, insufficient stock, multi-item checkout, idempotency, auth session, receipt numbering, offline recovery, rules emulator
-- [ ] (10) Localization wiring in main.dart + remove hardcoded strings
-- [ ] (11) Android signing/app config for release
+- [ ] (2) Minimal auth — staff PIN login, StaffUser session, route redirect — Partial: sign-in/session/device identity and authentication-only redirect added; session restoration remains
+- [ ] (3) Provision `organizationId`/role via Cloud Function custom claims (Admin SDK)
+- [ ] (4) Thread real organizationId/actorId/deviceId into payment_screen.dart
+- [ ] (5) Idempotency key on checkout transaction
+- [ ] (6) Confirm-button loading/disabled state during async transaction
+- [ ] (7) Drift offline persistence — products, pending sales, receipts, sync queue
+- [ ] (8) Receipt construction and persistence — numbering, NIU, TVA, timestamps
+- [ ] (9) Receipt printing/sharing
+- [ ] (10) Test suite — money/tax rounding, insufficient stock, multi-item checkout, idempotency, auth session, receipt numbering, offline recovery, rules emulator
+- [ ] (11) Localization wiring in main.dart + remove hardcoded strings
+- [ ] (12) Android signing/app config for release
 
 Do not build Phase 4 or Phase 5 features, including AI, multi-branch scaling, subscription billing, embedded finance, or live mobile-money collection, unless the request explicitly unlocks that phase.
