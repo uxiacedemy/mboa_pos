@@ -13,6 +13,7 @@ Design for the primary device reality: compact 5-inch 720p Android screens, 2 GB
 - Workspace: `C:\Users\EVERMATE\Desktop\mboa_pos`
 - Flutter SDK: `C:\Users\EVERMATE\flutter`; Flutter is configured in User `PATH`, but this SDK install cannot launch its `.bat` entry point directly from PowerShell. Always invoke it through `cmd.exe /d /c`, for example `cmd.exe /d /c "C:\Users\EVERMATE\flutter\bin\flutter.bat analyze"`.
 - Root cause verified 2026-09-15: PowerShell has normal `PATHEXT`, `RemoteSigned` execution policy, and the Flutter bin directory in User/current `PATH`; the batch file also resolves its internal scripts and Dart executable through absolute paths, yet direct PowerShell process launch still fails while `cmd.exe` succeeds. Treat the `cmd.exe /d /c` workaround as permanent for this SDK install.
+- Node/npm commands must use the full path to `node.exe` + `npm-cli.js` under `C:\Users\EVERMATE\Downloads\node-v20.20.2-win-x64\...` — direct `npm`/`npm.cmd` invocation fails in this environment.
 - Common checks: `flutter pub get`, `flutter analyze`, `flutter test`, and `flutter run -d chrome --web-port 8080`.
 - Do not combine `cd` and a Flutter command into one malformed command. Run them as separate commands or set the working directory.
 - If Flutter reports a path or `DIR /B` problem, diagnose the SDK installation/path first; do not infer an application architecture failure from that warning.
@@ -42,7 +43,7 @@ This is the current Gate 1 baseline. Update this table whenever a feature is ver
 | Drift persistence | Missing | No local database layer | 2026-09-15 |
 | Firebase initialization | Partial (SDK initialization added; platform project options are not configured) | Firebase platform configuration | 2026-09-15 |
 | Firestore wiring | Partial (Product mapping, StockMovement model, stock exception, and checkout transaction added; project configuration and repository boundaries remain) | Firebase project configuration and repository boundaries | 2026-09-15 |
-| Authentication | Partial (PIN sign-in, StaffUser session, secure device ID, and auth-only route redirect added; session restoration and platform configuration remain) | Firebase platform configuration and staff claim provisioning | 2026-09-16 |
+| Authentication | Partial (PIN sign-in, StaffUser session, secure device ID, auth-only route redirect, and owner/admin staff-claim provisioning callable added; session restoration and platform configuration remain) | Firebase platform configuration and client session restoration | 2026-09-18 |
 | Stock deduction | Partial (guarded checkout transaction and movement write added) | Missing auth; no real staff identity to attach to actor/device fields | 2026-09-15 |
 | Receipt persistence | Missing | No receipt persistence layer | 2026-09-15 |
 | Receipt printing | Missing | No printer integration | 2026-09-15 |
@@ -132,7 +133,7 @@ New terminal sessions default to `C:\Windows\system32` — always confirm `pwd`/
 
 - [ ] (1) Firestore rules emulator validation for Stage 2 changes — Deferred: verify manually via staging Firestore project before first real merchant; not blocking local development
 - [ ] (2) Minimal auth — staff PIN login, StaffUser session, route redirect — Partial: sign-in/session/device identity and authentication-only redirect added; session restoration remains
-- [ ] (3) Provision `organizationId`/role via Cloud Function custom claims (Admin SDK)
+- [x] (3) Provision `organizationId`/role via Cloud Function custom claims (Admin SDK) — `functions/src/index.ts`, callable in `europe-west1`
 - [ ] (4) Thread real organizationId/actorId/deviceId into payment_screen.dart
 - [ ] (5) Idempotency key on checkout transaction
 - [ ] (6) Confirm-button loading/disabled state during async transaction
