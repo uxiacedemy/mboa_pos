@@ -81,7 +81,8 @@ class ProductTile extends StatelessWidget {
                 height: 36,
                 child: IconButton.outlined(
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints:
+                      const BoxConstraints(minWidth: 36, minHeight: 36),
                   icon: const Icon(Icons.remove, size: 16),
                   onPressed: onRemove,
                 ),
@@ -112,9 +113,9 @@ class ProductTile extends StatelessWidget {
   }
 
   IconData _categoryIcon(String category) => switch (category) {
-    'boissons'    => Icons.local_drink_outlined,
-    'alimentaire' => Icons.restaurant_outlined,
-    'hygiène'     => Icons.clean_hands_outlined,
-    _             => Icons.inventory_2_outlined,
-  };
+        'boissons' => Icons.local_drink_outlined,
+        'alimentaire' => Icons.restaurant_outlined,
+        'hygiène' => Icons.clean_hands_outlined,
+        _ => Icons.inventory_2_outlined,
+      };
 }

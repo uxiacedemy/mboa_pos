@@ -39,9 +39,8 @@ class CartNotifier extends Notifier<List<CartItem>> {
       return;
     }
     state = state
-        .map((i) => i.product.id == productId
-            ? i.copyWith(quantity: quantity)
-            : i)
+        .map((i) =>
+            i.product.id == productId ? i.copyWith(quantity: quantity) : i)
         .toList();
   }
 

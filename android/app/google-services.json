@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "268061666370",
+    "project_id": "mboapos",
+    "storage_bucket": "mboapos.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:268061666370:android:448e375840b1a938edd1db",
+        "android_client_info": {
+          "package_name": "com.example.mboa_pos"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "268061666370-785ed7uneifptu8ai301oontq7a467vd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvbEUGZovrpGwsGbevmVlDTjEGQnYoq_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "268061666370-785ed7uneifptu8ai301oontq7a467vd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

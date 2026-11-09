@@ -1,5 +1,15 @@
 {
     "cmake.sourceDirectory": "C:/Users/EVERMATE/Desktop/mboa_pos/linux",
     "files.autoSave": "afterDelay",
-    "files.autoSaveDelay": 1000
+    "files.autoSaveDelay": 1000,
+    "java.compile.nullAnalysis.mode": "automatic",
+    "chat.mcp.discovery.enabled": {
+        "cursor-global": true,
+        "cursor-workspace": true,
+        "windsurf": true,
+        "claude-desktop": true,
+        "copilot": true
+    },
+    "chat.mcp.gallery.enabled": true,
+    "chat.mcp.assisted.nuget.enabled": true
 }

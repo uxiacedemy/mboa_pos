@@ -7,10 +7,10 @@ class MainShell extends StatelessWidget {
 
   int _index(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
-    if (path.startsWith('/pos'))       return 0;
+    if (path.startsWith('/pos')) return 0;
     if (path.startsWith('/inventory')) return 1;
-    if (path.startsWith('/reports'))   return 2;
-    if (path.startsWith('/settings'))  return 3;
+    if (path.startsWith('/reports')) return 2;
+    if (path.startsWith('/settings')) return 3;
     return 0;
   }
 
@@ -22,10 +22,18 @@ class MainShell extends StatelessWidget {
         selectedIndex: _index(context),
         onDestinationSelected: (i) {
           switch (i) {
-            case 0: context.go('/pos');       break;
-            case 1: context.go('/inventory'); break;
-            case 2: context.go('/reports');   break;
-            case 3: context.go('/settings');  break;
+            case 0:
+              context.go('/pos');
+              break;
+            case 1:
+              context.go('/inventory');
+              break;
+            case 2:
+              context.go('/reports');
+              break;
+            case 3:
+              context.go('/settings');
+              break;
           }
         },
         destinations: const [

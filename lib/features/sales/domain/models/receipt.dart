@@ -13,6 +13,7 @@ class ReceiptData {
   final double taxRate;
   final int totalFCFA;
   final String paymentMethod;
+  final String? paymentReference;
 
   const ReceiptData({
     required this.receiptNumber,
@@ -29,6 +30,7 @@ class ReceiptData {
     required this.taxRate,
     required this.totalFCFA,
     required this.paymentMethod,
+    this.paymentReference,
   });
 }
 

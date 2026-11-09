@@ -3,6 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'staff_user.freezed.dart';
 
 enum StaffRole {
+  owner,
   cashier,
   supervisor,
   manager,

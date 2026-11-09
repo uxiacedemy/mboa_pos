@@ -4,5 +4,43 @@
   },
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "functions": {
+      "port": 5001
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    },
+    "singleProjectMode": true
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "mboapos",
+          "appId": "1:268061666370:android:448e375840b1a938edd1db",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "mboapos",
+          "configurations": {
+            "android": "1:268061666370:android:448e375840b1a938edd1db",
+            "ios": "1:268061666370:ios:f8152c2d03b0bfdcedd1db",
+            "macos": "1:268061666370:ios:f8152c2d03b0bfdcedd1db",
+            "web": "1:268061666370:web:f32daa8fac956ef9edd1db"
+          }
+        }
+      }
+    }
   }
 }

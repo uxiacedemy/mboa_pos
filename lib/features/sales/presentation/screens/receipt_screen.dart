@@ -1,46 +1,194 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../../../../core/design/design_tokens.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../domain/models/receipt.dart';
 
-class ReceiptScreen extends StatelessWidget {
+class ReceiptScreen extends StatefulWidget {
   final ReceiptData receipt;
+
   const ReceiptScreen({super.key, required this.receipt});
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  State<ReceiptScreen> createState() => _ReceiptScreenState();
+}
 
+class _ReceiptScreenState extends State<ReceiptScreen> {
+  String? _runningAction;
+
+  String _money(int amount) =>
+      '${NumberFormat('#,##0', 'fr_CM').format(amount)} FCFA';
+
+  Future<Uint8List> _buildPdf(PdfPageFormat format) async {
+    final receipt = widget.receipt;
+    final document = pw.Document();
+    document.addPage(
+      pw.MultiPage(
+        pageFormat: format,
+        margin: const pw.EdgeInsets.all(28),
+        build: (context) => [
+          pw.Center(
+            child: pw.Text(
+              receipt.organizationName,
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Center(child: pw.Text('NIU: ${receipt.organizationNiu}')),
+          pw.Center(child: pw.Text(receipt.organizationAddress)),
+          pw.SizedBox(height: 12),
+          pw.Divider(),
+          _pdfRow('ReÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§u NÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°',
+              receipt.receiptNumber),
+          _pdfRow(
+              'Date', DateFormat('dd/MM/yyyy HH:mm').format(receipt.issuedAt)),
+          _pdfRow('Caissier', receipt.cashierName),
+          pw.SizedBox(height: 10),
+          pw.TableHelper.fromTextArray(
+            headers: const ['Produit', 'QtÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©', 'Prix', 'Total'],
+            data: [
+              for (final item in receipt.items)
+                [
+                  item.name,
+                  '${item.quantity}',
+                  _money(item.unitPriceFCFA),
+                  _money(item.subtotalFCFA)
+                ],
+            ],
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellAlignments: {
+              1: pw.Alignment.center,
+              2: pw.Alignment.centerRight,
+              3: pw.Alignment.centerRight,
+            },
+          ),
+          pw.SizedBox(height: 10),
+          pw.Divider(),
+          _pdfRow('Sous-total HT', _money(receipt.subtotalFCFA)),
+          if (receipt.discountFCFA > 0)
+            _pdfRow('Remise', '- ${_money(receipt.discountFCFA)}'),
+          if (receipt.taxFCFA > 0)
+            _pdfRow('Taxe (${(receipt.taxRate * 100).toStringAsFixed(2)}%)',
+                _money(receipt.taxFCFA)),
+          if (receipt.deliveryFCFA > 0)
+            _pdfRow('Livraison', _money(receipt.deliveryFCFA)),
+          pw.Divider(),
+          _pdfRow('TOTAL TTC', _money(receipt.totalFCFA), bold: true),
+          _pdfRow('Paiement', receipt.paymentMethod),
+          if (receipt.paymentReference != null &&
+              receipt.paymentReference!.isNotEmpty)
+            _pdfRow('RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rence',
+                receipt.paymentReference!),
+          pw.SizedBox(height: 18),
+          pw.Center(child: pw.Text('Merci de votre visite !')),
+        ],
+      ),
+    );
+    return document.save();
+  }
+
+  pw.Widget _pdfRow(String label, String value, {bool bold = false}) =>
+      pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 4),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(label,
+                style:
+                    bold ? pw.TextStyle(fontWeight: pw.FontWeight.bold) : null),
+            pw.Text(value,
+                style:
+                    bold ? pw.TextStyle(fontWeight: pw.FontWeight.bold) : null),
+          ],
+        ),
+      );
+
+  Future<void> _share() async {
+    if (_runningAction != null) return;
+    setState(() => _runningAction = 'share');
+    try {
+      final bytes = await _buildPdf(PdfPageFormat.a4);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: '${widget.receipt.receiptNumber}.pdf',
+      );
+      if (mounted) {
+        _feedback(AppLocalizations.of(context)!.receiptShared);
+      }
+    } catch (error) {
+      if (mounted) {
+        _feedback(AppLocalizations.of(context)!.receiptActionFailed('$error'),
+            error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _runningAction = null);
+    }
+  }
+
+  Future<void> _print() async {
+    if (_runningAction != null) return;
+    setState(() => _runningAction = 'print');
+    try {
+      await Printing.layoutPdf(onLayout: _buildPdf);
+      if (mounted) {
+        _feedback(AppLocalizations.of(context)!.receiptPrinted);
+      }
+    } catch (error) {
+      if (mounted) {
+        _feedback(AppLocalizations.of(context)!.receiptActionFailed('$error'),
+            error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _runningAction = null);
+    }
+  }
+
+  void _feedback(String message, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: error ? Theme.of(context).colorScheme.error : null,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
-        title: const Text('Reçu', style: AppTypography.titleLarge),
+        title: Text(l10n.receiptTitle, style: AppTypography.titleLarge),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_outlined),
-            tooltip: 'Partager',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Partage — bientôt disponible'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            icon: _runningAction == 'share'
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.share_outlined),
+            tooltip: l10n.shareReceipt,
+            onPressed: _runningAction == null ? _share : null,
           ),
           IconButton(
-            icon: const Icon(Icons.print_outlined),
-            tooltip: 'Imprimer',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Impression Bluetooth — bientôt disponible'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            icon: _runningAction == 'print'
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.print_outlined),
+            tooltip: l10n.printReceipt,
+            onPressed: _runningAction == null ? _print : null,
           ),
         ],
       ),
@@ -52,13 +200,11 @@ class ReceiptScreen extends StatelessWidget {
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 400),
-                  child: _ReceiptPaper(receipt: receipt),
+                  child: _ReceiptPaper(receipt: widget.receipt),
                 ),
               ),
             ),
           ),
-
-          // Bottom actions
           Container(
             padding: EdgeInsets.fromLTRB(
               AppSpacing.md,
@@ -80,28 +226,18 @@ class ReceiptScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.message_outlined),
-                    label: const Text('WhatsApp'),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('WhatsApp — bientôt disponible'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                    label: Text(l10n.sharePdf),
+                    onPressed: _runningAction == null ? _share : null,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: FilledButton.icon(
                     icon: const Icon(Icons.add_shopping_cart_outlined),
-                    label: const Text('Nouvelle vente'),
-                    onPressed: () {
-                      // Pop back to POS screen
-                      Navigator.of(context)
-                          .popUntil((route) => route.isFirst);
-                    },
+                    label: Text(l10n.newSale),
+                    onPressed: () => Navigator.of(context)
+                        .popUntil((route) => route.isFirst),
                   ),
                 ),
               ],
@@ -113,8 +249,6 @@ class ReceiptScreen extends StatelessWidget {
   }
 }
 
-// ─── Receipt Paper Widget ─────────────────────────────────────────────────────
-
 class _ReceiptPaper extends StatelessWidget {
   final ReceiptData receipt;
   const _ReceiptPaper({required this.receipt});
@@ -124,8 +258,8 @@ class _ReceiptPaper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -137,155 +271,90 @@ class _ReceiptPaper extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-
-          // ── Header ──────────────────────────────────────────────
-          Text(
-            receipt.organizationName,
-            textAlign: TextAlign.center,
-            style: AppTypography.titleLarge.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(receipt.organizationName,
+              textAlign: TextAlign.center,
+              style: AppTypography.titleLarge
+                  .copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            'NIU: ${receipt.organizationNiu}',
-            textAlign: TextAlign.center,
-            style: AppTypography.bodySmall,
-          ),
-          Text(
-            receipt.organizationAddress,
-            textAlign: TextAlign.center,
-            style: AppTypography.bodySmall,
-          ),
-
+          Text('${l10n.organizationNiu}: ${receipt.organizationNiu}',
+              textAlign: TextAlign.center, style: AppTypography.bodySmall),
+          Text(receipt.organizationAddress,
+              textAlign: TextAlign.center, style: AppTypography.bodySmall),
           const SizedBox(height: AppSpacing.md),
-          _Divider(),
-
-          // ── Receipt info ────────────────────────────────────────
+          const _Divider(),
+          _InfoRow(label: l10n.receiptNumber, value: receipt.receiptNumber),
           _InfoRow(
-            label: 'Reçu N°',
-            value: receipt.receiptNumber,
-          ),
-          _InfoRow(
-            label: 'Date',
-            value: DateFormat('dd/MM/yyyy HH:mm').format(receipt.issuedAt),
-          ),
-          _InfoRow(
-            label: 'Caissier',
-            value: receipt.cashierName,
-          ),
-
+              label: l10n.date,
+              value: DateFormat('dd/MM/yyyy HH:mm').format(receipt.issuedAt)),
+          _InfoRow(label: l10n.cashier, value: receipt.cashierName),
           const SizedBox(height: AppSpacing.sm),
-          _Divider(),
+          const _Divider(),
           const SizedBox(height: AppSpacing.sm),
-
-          // ── Items ────────────────────────────────────────────────
           ...receipt.items.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(item.name,
-                          style: AppTypography.bodyMedium),
-                      Text(
-                        '${item.quantity} × ${_fmt(item.unitPriceFCFA)}',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.name, style: AppTypography.bodyMedium),
+                          Text(
+                              '${item.quantity} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${_fmt(item.unitPriceFCFA)}',
+                              style: AppTypography.bodySmall.copyWith(
+                                  color: colorScheme.onSurfaceVariant)),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Text(_fmt(item.subtotalFCFA),
+                        style: AppTypography.bodyMedium
+                            .copyWith(fontWeight: FontWeight.w600)),
+                  ],
                 ),
-                Text(
-                  _fmt(item.subtotalFCFA),
-                  style: AppTypography.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          )),
-
+              )),
           const SizedBox(height: AppSpacing.sm),
-          _Divider(),
+          const _Divider(),
           const SizedBox(height: AppSpacing.sm),
-
-          // ── Totals ───────────────────────────────────────────────
-          _InfoRow(
-            label: 'Sous-total HT',
-            value: _fmt(receipt.subtotalFCFA),
-          ),
+          _InfoRow(label: l10n.subtotal, value: _fmt(receipt.subtotalFCFA)),
           if (receipt.discountFCFA > 0)
             _InfoRow(
-              label: 'Remise',
-              value: '- ${_fmt(receipt.discountFCFA)}',
-              valueColor: AppColors.success,
-            ),
+                label: l10n.discount,
+                value: '- ${_fmt(receipt.discountFCFA)}',
+                valueColor: AppColors.success),
           if (receipt.taxFCFA > 0)
             _InfoRow(
-              label:
-                  'Taxe (${(receipt.taxRate * 100).toStringAsFixed(2)}%)',
-              value: _fmt(receipt.taxFCFA),
-            ),
+                label: l10n.tax((receipt.taxRate * 100).toStringAsFixed(2)),
+                value: _fmt(receipt.taxFCFA)),
           if (receipt.deliveryFCFA > 0)
-            _InfoRow(
-              label: 'Livraison',
-              value: _fmt(receipt.deliveryFCFA),
-            ),
-
+            _InfoRow(label: l10n.delivery, value: _fmt(receipt.deliveryFCFA)),
           const SizedBox(height: AppSpacing.sm),
-          _Divider(),
+          const _Divider(),
           const SizedBox(height: AppSpacing.sm),
-
-          // Total TTC
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'TOTAL TTC',
-                style: AppTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                _fmt(receipt.totalFCFA),
-                style: AppTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.primary,
-                ),
-              ),
+              Text(l10n.total,
+                  style: AppTypography.titleMedium
+                      .copyWith(fontWeight: FontWeight.w700)),
+              Text(_fmt(receipt.totalFCFA),
+                  style: AppTypography.titleMedium.copyWith(
+                      fontWeight: FontWeight.w700, color: colorScheme.primary)),
             ],
           ),
-
           const SizedBox(height: AppSpacing.xs),
-          _InfoRow(
-            label: 'Paiement',
-            value: receipt.paymentMethod,
-          ),
-
+          _InfoRow(label: l10n.payment, value: receipt.paymentMethod),
+          if (receipt.paymentReference != null &&
+              receipt.paymentReference!.isNotEmpty)
+            _InfoRow(
+                label: l10n.paymentReference, value: receipt.paymentReference!),
           const SizedBox(height: AppSpacing.md),
-          _Divider(),
+          const _Divider(),
           const SizedBox(height: AppSpacing.md),
-
-          // ── Footer ───────────────────────────────────────────────
-          Text(
-            'Merci de votre visite !',
-            textAlign: TextAlign.center,
-            style: AppTypography.bodyMedium.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(
-            'Thank you for your visit!',
-            textAlign: TextAlign.center,
-            style: AppTypography.bodySmall.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text(l10n.thankYou,
+              textAlign: TextAlign.center,
+              style: AppTypography.bodyMedium
+                  .copyWith(color: colorScheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -293,44 +362,35 @@ class _ReceiptPaper extends StatelessWidget {
 }
 
 class _Divider extends StatelessWidget {
+  const _Divider();
   @override
   Widget build(BuildContext context) => Divider(
-    color: Theme.of(context).colorScheme.outlineVariant,
-    thickness: 1,
-  );
+      color: Theme.of(context).colorScheme.outlineVariant, thickness: 1);
 }
 
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
   final Color? valueColor;
-
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
+  const _InfoRow({required this.label, required this.value, this.valueColor});
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: AppTypography.bodySmall.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              )),
-          Text(
-            value,
-            style: AppTypography.bodySmall.copyWith(
-              fontWeight: FontWeight.w600,
-              color: valueColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+                child: Text(label,
+                    style: AppTypography.bodySmall.copyWith(
+                        color:
+                            Theme.of(context).colorScheme.onSurfaceVariant))),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(
+                child: Text(value,
+                    textAlign: TextAlign.end,
+                    style: AppTypography.bodySmall.copyWith(
+                        fontWeight: FontWeight.w600, color: valueColor))),
+          ],
+        ),
+      );
 }

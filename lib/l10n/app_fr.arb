@@ -1,36 +1,132 @@
-{
-  "@@locale": "fr",
-  "appTitle": "MboaPOS",
-  "posTitle": "Nouvelle Vente",
-  "searchHint": "Rechercher ou scanner...",
-  "encaisser": "Encaisser",
-  "cartEmpty": "Panier vide",
-  "noProducts": "Aucun produit disponible",
-  "noResults": "Aucun résultat pour \"{query}\"",
-  "@noResults": {
-    "placeholders": {
-      "query": { "type": "String" }
-    }
-  },
-  "articles": "{count} article(s)",
-  "@articles": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
-  "synced": "Synchronisé",
-  "pending": "En attente",
-  "offline": "Hors ligne",
-  "conflict": "Conflit",
-  "navSales": "Ventes",
-  "navInventory": "Inventaire",
-  "navReports": "Rapports",
-  "navSettings": "Paramètres",
-  "loginTitle": "Connexion",
-  "loginSubtitle": "Point de Vente Intelligent",
-  "emailLabel": "Email",
-  "passwordLabel": "Mot de passe",
-  "loginButton": "Se connecter",
-  "comingSoon": "Bientôt disponible",
-  "paymentComingSoon": "Paiement — bientôt disponible"
+﻿{
+    "@@locale":  "fr",
+    "appTitle":  "MboaPOS",
+    "posTitle":  "Nouvelle Vente",
+    "searchHint":  "Rechercher ou scanner...",
+    "encaisser":  "Encaisser",
+    "cartEmpty":  "Panier vide",
+    "noProducts":  "Aucun produit disponible",
+    "noResults":  "Aucun rÃ©sultat pour \"{query}\"",
+    "@noResults":  {
+                       "placeholders":  {
+                                            "query":  {
+                                                          "type":  "String"
+                                                      }
+                                        }
+                   },
+    "articles":  "{count} article(s)",
+    "@articles":  {
+                      "placeholders":  {
+                                           "count":  {
+                                                         "type":  "int"
+                                                     }
+                                       }
+                  },
+    "synced":  "SynchronisÃ©",
+    "pending":  "En attente",
+    "offline":  "Hors ligne",
+    "conflict":  "Conflit",
+    "navSales":  "Ventes",
+    "navInventory":  "Inventaire",
+    "navReports":  "Rapports",
+    "navSettings":  "ParamÃ¨tres",
+    "loginTitle":  "Connexion",
+    "loginSubtitle":  "Point de Vente Intelligent",
+    "emailLabel":  "Email",
+    "passwordLabel":  "Mot de passe",
+    "loginButton":  "Se connecter",
+    "comingSoon":  "BientÃ´t disponible",
+    "paymentComingSoon":  "Paiement â€” bientÃ´t disponible",
+    "storeSubtitle":  "Caisse et inventaire",
+    "clear":  "Effacer",
+    "scanner":  "Scanner",
+    "products":  "Produits",
+    "availableProducts":  "{count} disponibles",
+    "@availableProducts":  {
+                               "placeholders":  {
+                                                    "count":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "allCategories":  "Toutes les catégories",
+    "addProduct":  "Ajouter",
+    "outOfStock":  "Rupture de stock",
+    "cart":  "Panier",
+    "emptyCart":  "Votre panier est vide",
+    "proceedPayment":  "Procéder au paiement",
+    "remove":  "Supprimer",
+    "decrease":  "Diminuer la quantité",
+    "increase":  "Augmenter la quantité",
+    "receiptTitle":  "Reçu",
+    "shareReceipt":  "Partager le reçu",
+    "printReceipt":  "Imprimer le reçu",
+    "sharePdf":  "Partager le PDF",
+    "newSale":  "Nouvelle vente",
+    "receiptNumber":  "Reçu N°",
+    "date":  "Date",
+    "cashier":  "Caissier",
+    "subtotal":  "Sous-total HT",
+    "discount":  "Remise",
+    "delivery":  "Livraison",
+    "tax":  "Taxe ({rate}%)",
+    "@tax":  {
+                 "placeholders":  {
+                                      "rate":  {
+                                                   "type":  "String"
+                                               }
+                                  }
+             },
+    "total":  "TOTAL TTC",
+    "payment":  "Paiement",
+    "paymentReference":  "Référence",
+    "receiptShared":  "Reçu PDF prêt à être partagé.",
+    "receiptPrinted":  "Reçu envoyé à l\u0027impression.",
+    "receiptActionFailed":  "Impossible de traiter le reçu : {error}",
+    "@receiptActionFailed":  {
+                                 "placeholders":  {
+                                                      "error":  {
+                                                                    "type":  "String"
+                                                                }
+                                                  }
+                             },
+    "organizationNiu":  "NIU",
+    "organizationAddress":  "Adresse non configurée",
+    "scannerUnavailable":  "Scanner indisponible sur cet appareil",
+    "thankYou":  "Merci de votre visite !",
+    "authStaff":  "Équipe",
+    "authOwner":  "Propriétaire",
+    "authWelcome":  "Bienvenue sur MboaPOS",
+    "authSubtitle":  "La caisse simple pour garder votre activité sous contrôle.",
+    "authStaffHint":  "Connectez-vous avec votre identifiant et votre PIN.",
+    "authOwnerHint":  "Accédez à votre espace de gestion.",
+    "staffId":  "Identifiant staff",
+    "pin":  "PIN sécurisé",
+    "email":  "Adresse e-mail",
+    "password":  "Mot de passe",
+    "showPin":  "Afficher le PIN",
+    "hidePin":  "Masquer le PIN",
+    "showPassword":  "Afficher le mot de passe",
+    "hidePassword":  "Masquer le mot de passe",
+    "signIn":  "Se connecter",
+    "signingIn":  "Connexion…",
+    "forgotPin":  "PIN oublié ? Contactez votre administrateur.",
+    "forgotPassword":  "Mot de passe oublié ?",
+    "resetSent":  "Si ce compte existe, un e-mail de réinitialisation a été envoyé.",
+    "createBusiness":  "Créer un compte entreprise",
+    "businessName":  "Nom de l’entreprise",
+    "createAccount":  "Créer le compte",
+    "creatingAccount":  "Création…",
+    "verificationSent":  "Compte créé. Vérifiez votre e-mail avant de vous connecter.",
+    "backToLogin":  "Retour à la connexion",
+    "passwordRequirement":  "8 caractères minimum",
+    "brandPromise":  "Vendez vite. Suivez votre stock. Gardez le contrôle.",
+    "brandBenefitOne":  "Une caisse claire et rapide",
+    "brandBenefitTwo":  "Stock visible à chaque vente",
+    "brandBenefitThree":  "Conçu pour les commerces locaux",
+    "authInvalid":  "Vérifiez vos informations et réessayez.",
+    "authNetwork":  "Connexion réseau indisponible.",
+    "authDisabled":  "Ce compte est désactivé.",
+    "authGeneric":  "Connexion impossible. Réessayez.",
+    "authClose":  "Fermer"
 }

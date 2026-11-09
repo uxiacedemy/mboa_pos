@@ -1,36 +1,132 @@
-{
-  "@@locale": "en",
-  "appTitle": "MboaPOS",
-  "posTitle": "New Sale",
-  "searchHint": "Search or scan...",
-  "encaisser": "Checkout",
-  "cartEmpty": "Empty cart",
-  "noProducts": "No products available",
-  "noResults": "No results for \"{query}\"",
-  "@noResults": {
-    "placeholders": {
-      "query": { "type": "String" }
-    }
-  },
-  "articles": "{count} item(s)",
-  "@articles": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
-  "synced": "Synced",
-  "pending": "Pending",
-  "offline": "Offline",
-  "conflict": "Conflict",
-  "navSales": "Sales",
-  "navInventory": "Inventory",
-  "navReports": "Reports",
-  "navSettings": "Settings",
-  "loginTitle": "Login",
-  "loginSubtitle": "Smart Point of Sale",
-  "emailLabel": "Email",
-  "passwordLabel": "Password",
-  "loginButton": "Sign in",
-  "comingSoon": "Coming soon",
-  "paymentComingSoon": "Payment — coming soon"
+﻿{
+    "@@locale":  "en",
+    "appTitle":  "MboaPOS",
+    "posTitle":  "New Sale",
+    "searchHint":  "Search or scan...",
+    "encaisser":  "Checkout",
+    "cartEmpty":  "Empty cart",
+    "noProducts":  "No products available",
+    "noResults":  "No results for \"{query}\"",
+    "@noResults":  {
+                       "placeholders":  {
+                                            "query":  {
+                                                          "type":  "String"
+                                                      }
+                                        }
+                   },
+    "articles":  "{count} item(s)",
+    "@articles":  {
+                      "placeholders":  {
+                                           "count":  {
+                                                         "type":  "int"
+                                                     }
+                                       }
+                  },
+    "synced":  "Synced",
+    "pending":  "Pending",
+    "offline":  "Offline",
+    "conflict":  "Conflict",
+    "navSales":  "Sales",
+    "navInventory":  "Inventory",
+    "navReports":  "Reports",
+    "navSettings":  "Settings",
+    "loginTitle":  "Login",
+    "loginSubtitle":  "Smart Point of Sale",
+    "emailLabel":  "Email",
+    "passwordLabel":  "Password",
+    "loginButton":  "Sign in",
+    "comingSoon":  "Coming soon",
+    "paymentComingSoon":  "Payment â€” coming soon",
+    "storeSubtitle":  "Checkout and inventory",
+    "clear":  "Clear",
+    "scanner":  "Scanner",
+    "products":  "Products",
+    "availableProducts":  "{count} available",
+    "@availableProducts":  {
+                               "placeholders":  {
+                                                    "count":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "allCategories":  "All categories",
+    "addProduct":  "Add",
+    "outOfStock":  "Out of stock",
+    "cart":  "Cart",
+    "emptyCart":  "Your cart is empty",
+    "proceedPayment":  "Proceed to payment",
+    "remove":  "Remove",
+    "decrease":  "Decrease quantity",
+    "increase":  "Increase quantity",
+    "receiptTitle":  "Receipt",
+    "shareReceipt":  "Share receipt",
+    "printReceipt":  "Print receipt",
+    "sharePdf":  "Share PDF",
+    "newSale":  "New sale",
+    "receiptNumber":  "Receipt No.",
+    "date":  "Date",
+    "cashier":  "Cashier",
+    "subtotal":  "Subtotal before tax",
+    "discount":  "Discount",
+    "delivery":  "Delivery",
+    "tax":  "Tax ({rate}%)",
+    "@tax":  {
+                 "placeholders":  {
+                                      "rate":  {
+                                                   "type":  "String"
+                                               }
+                                  }
+             },
+    "total":  "TOTAL",
+    "payment":  "Payment",
+    "paymentReference":  "Reference",
+    "receiptShared":  "Receipt PDF is ready to share.",
+    "receiptPrinted":  "Receipt sent to the printer.",
+    "receiptActionFailed":  "Could not process receipt: {error}",
+    "@receiptActionFailed":  {
+                                 "placeholders":  {
+                                                      "error":  {
+                                                                    "type":  "String"
+                                                                }
+                                                  }
+                             },
+    "organizationNiu":  "Tax ID",
+    "organizationAddress":  "Address not configured",
+    "scannerUnavailable":  "Scanner is unavailable on this device",
+    "thankYou":  "Thank you for your visit!",
+    "authStaff":  "Staff",
+    "authOwner":  "Owner",
+    "authWelcome":  "Welcome to MboaPOS",
+    "authSubtitle":  "The simple checkout that keeps your business in control.",
+    "authStaffHint":  "Sign in with your staff ID and PIN.",
+    "authOwnerHint":  "Access your business management space.",
+    "staffId":  "Staff ID",
+    "pin":  "Secure PIN",
+    "email":  "Email address",
+    "password":  "Password",
+    "showPin":  "Show PIN",
+    "hidePin":  "Hide PIN",
+    "showPassword":  "Show password",
+    "hidePassword":  "Hide password",
+    "signIn":  "Sign in",
+    "signingIn":  "Signing in…",
+    "forgotPin":  "Forgot your PIN? Contact your administrator.",
+    "forgotPassword":  "Forgot password?",
+    "resetSent":  "If this account exists, a reset email has been sent.",
+    "createBusiness":  "Create a business account",
+    "businessName":  "Business name",
+    "createAccount":  "Create account",
+    "creatingAccount":  "Creating…",
+    "verificationSent":  "Account created. Verify your email before signing in.",
+    "backToLogin":  "Back to sign in",
+    "passwordRequirement":  "At least 8 characters",
+    "brandPromise":  "Sell faster. Track stock. Stay in control.",
+    "brandBenefitOne":  "A clear, fast checkout",
+    "brandBenefitTwo":  "Stock visibility on every sale",
+    "brandBenefitThree":  "Built for local businesses",
+    "authInvalid":  "Check your details and try again.",
+    "authNetwork":  "Network connection unavailable.",
+    "authDisabled":  "This account is disabled.",
+    "authGeneric":  "Sign-in failed. Try again.",
+    "authClose":  "Close"
 }

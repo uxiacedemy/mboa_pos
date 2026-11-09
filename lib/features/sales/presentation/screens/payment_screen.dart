@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/design/design_tokens.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../inventory/domain/errors/insufficient_stock_exception.dart';
-import '../../../inventory/domain/models/stock_movement.dart';
 import '../providers/cart_provider.dart';
 import '../../domain/models/cart_item.dart';
+import '../../domain/models/receipt.dart';
+import 'receipt_screen.dart';
 
 class PaymentScreen extends ConsumerStatefulWidget {
   const PaymentScreen({super.key});
@@ -19,29 +19,32 @@ class PaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
-  final _discountController  = TextEditingController(text: '0');
-  final _deliveryController  = TextEditingController(text: '0');
-  final _taxRateController   = TextEditingController(text: '19.25');
-  String _paymentMethod      = 'cash';
-  bool _taxIncluded          = false;
+  final _discountController = TextEditingController(text: '0');
+  final _deliveryController = TextEditingController(text: '0');
+  final _taxRateController = TextEditingController(text: '19.25');
+  final _paymentReferenceController = TextEditingController();
+  final _checkoutId = const Uuid().v4();
+  String _paymentMethod = 'cash';
+  bool _taxIncluded = false;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
     _discountController.dispose();
     _deliveryController.dispose();
     _taxRateController.dispose();
+    _paymentReferenceController.dispose();
     super.dispose();
   }
 
-  int get _discount  => int.tryParse(_discountController.text)  ?? 0;
-  int get _delivery  => int.tryParse(_deliveryController.text)  ?? 0;
+  int get _discount => int.tryParse(_discountController.text) ?? 0;
+  int get _delivery => int.tryParse(_deliveryController.text) ?? 0;
   int get _taxRateBasisPoints {
     final value = _taxRateController.text.trim().replaceAll(',', '.');
     final parts = value.split('.');
     final whole = int.tryParse(parts.first) ?? 0;
-    final fraction = parts.length > 1
-        ? parts[1].padRight(2, '0').substring(0, 2)
-        : '00';
+    final fraction =
+        parts.length > 1 ? parts[1].padRight(2, '0').substring(0, 2) : '00';
     return whole * 100 + (int.tryParse(fraction) ?? 0);
   }
 
@@ -50,7 +53,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   int _calculate(int subtotal) {
     final afterDiscount = (subtotal - _discount).clamp(0, subtotal);
-    final tax      = _taxIncluded ? _taxFor(afterDiscount) : 0;
+    final tax = _taxIncluded ? _taxFor(afterDiscount) : 0;
     return afterDiscount + tax + _delivery;
   }
 
@@ -62,129 +65,116 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     List<CartItem> cart,
     int subtotal,
   ) async {
-    final staffUser = ref.read(authProvider);
-    final deviceId = await ref.read(deviceIdProvider.future);
-    if (staffUser == null) {
-      throw StateError('No authenticated staff session.');
-    }
-    final organizationId = staffUser.organizationId;
-    final db = FirebaseFirestore.instance;
-    final uuid = const Uuid();
-    final saleId = uuid.v4();
-    final productRefs = [
-      for (final item in cart)
-        db
-            .collection('organizations')
-            .doc(organizationId)
-            .collection('products')
-            .doc(item.product.id),
-    ];
-
-    await db.runTransaction((txn) async {
-      final snapshots = [
-        for (final productRef in productRefs) await txn.get(productRef),
-      ];
-
-      final movements = <({DocumentReference<Map<String, dynamic>> ref,
-          StockMovement movement})>[];
-      for (var index = 0; index < cart.length; index++) {
-        final item = cart[index];
-        final movement = StockMovement(
-          id: uuid.v4(),
-          organizationId: organizationId,
-          productId: item.product.id,
-          quantity: -item.quantity,
-          type: StockMovementType.saleDeduction,
-          actorId: staffUser.uid,
-          deviceId: deviceId,
-          occurredAt: DateTime.now(),
-        );
-        final movementRef = db
-            .collection('organizations')
-            .doc(organizationId)
-            .collection('inventory_adjustments')
-            .doc(movement.id);
-          final snap = snapshots[index];
-        final current = snap.data()?['stockQty'] as int? ?? 0;
-        if (current < item.quantity) {
-          throw InsufficientStockException(
-            productId: item.product.id,
-            requested: item.quantity,
-            available: current,
-          );
-        }
-        movements.add((ref: movementRef, movement: movement));
-      }
-
-      for (var index = 0; index < cart.length; index++) {
-        txn.update(productRefs[index], {
-          'stockQty': FieldValue.increment(-cart[index].quantity),
-        });
-      }
-      for (final entry in movements) {
-        txn.set(entry.ref, entry.movement.toFirestore());
-      }
-      txn.set(
-        db
-            .collection('organizations')
-            .doc(organizationId)
-            .collection('transactions')
-            .doc(saleId),
-        {
-          'id': saleId,
-          'organizationId': organizationId,
-          'cashierId': staffUser.uid,
-          'status': 'completed',
-          'subtotalFCFA': subtotal,
-          'discountFCFA': _discount,
-          'deliveryFCFA': _delivery,
-          'taxFCFA': _taxIncluded ? _taxFor((subtotal - _discount).clamp(0, subtotal)) : 0,
-          'taxRateBasisPoints': _taxRateBasisPoints,
-          'totalFCFA': total,
-          'paymentMethod': _paymentMethod,
-          'items': [
-            for (final item in cart)
-              {
-                'productId': item.product.id,
-                'name': item.product.name,
-                'quantity': item.quantity,
-                'unitPriceFCFA': item.product.priceFCFA,
-                'subtotalFCFA': item.subtotalFCFA,
-              },
-          ],
-          'createdAt': FieldValue.serverTimestamp(),
-        },
+    if (_isSubmitting) return;
+    if (_paymentMethod != 'cash' &&
+        _paymentReferenceController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Saisissez la rÃƒÂ©fÃƒÂ©rence du paiement.')),
       );
-    });
+      return;
+    }
+    setState(() => _isSubmitting = true);
 
-    if (!mounted) return;
-    ref.read(cartProvider.notifier).clearCart();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Vente confirmée — ${_fmt(total)} encaissé en '
-          '${_paymentMethodLabel(_paymentMethod)}',
+    try {
+      final staffUser = ref.read(authProvider);
+      final deviceId = await ref.read(deviceIdProvider.future);
+      if (!mounted) return;
+      if (staffUser == null) {
+        throw StateError('No authenticated staff session.');
+      }
+      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('commitCheckout');
+      final result = await callable.call<Map<String, dynamic>>({
+        'idempotencyKey': _checkoutId,
+        'deviceId': deviceId,
+        'lines': [
+          for (final item in cart)
+            {
+              'productId': item.product.id,
+              'quantity': item.quantity,
+            },
+        ],
+        'subtotalFCFA': subtotal,
+        'discountFCFA': _discount,
+        'deliveryFCFA': _delivery,
+        'taxFCFA': _taxIncluded
+            ? _taxFor((subtotal - _discount).clamp(0, subtotal))
+            : 0,
+        'taxRateBasisPoints': _taxRateBasisPoints,
+        'totalFCFA': total,
+        'paymentMethod': _paymentMethod,
+        'paymentReference': _paymentMethod == 'cash'
+            ? null
+            : _paymentReferenceController.text.trim(),
+      });
+      final response = result.data;
+      final issuedAt =
+          DateTime.tryParse(response['issuedAt'] as String? ?? '') ??
+              DateTime.now();
+      final receipt = ReceiptData(
+        receiptNumber: response['receiptNumber'] as String? ?? _checkoutId,
+        issuedAt: issuedAt,
+        organizationName: 'MboaPOS',
+        organizationNiu: 'Non configurÃ©',
+        organizationAddress: 'Adresse non configurÃ©e',
+        cashierName: staffUser.uid,
+        items: [
+          for (final item in cart)
+            ReceiptLine(
+              name: item.product.name,
+              quantity: item.quantity,
+              unitPriceFCFA: item.product.priceFCFA,
+              subtotalFCFA: item.product.priceFCFA * item.quantity,
+            ),
+        ],
+        subtotalFCFA: subtotal,
+        discountFCFA: _discount,
+        deliveryFCFA: _delivery,
+        taxFCFA: _taxIncluded
+            ? _taxFor((subtotal - _discount).clamp(0, subtotal))
+            : 0,
+        taxRate: _taxRateBasisPoints / 10000,
+        totalFCFA: total,
+        paymentMethod: _paymentMethodLabel(_paymentMethod),
+        paymentReference: _paymentMethod == 'cash'
+            ? null
+            : _paymentReferenceController.text.trim(),
+      );
+      if (!mounted) return;
+      ref.read(cartProvider.notifier).clearCart();
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => ReceiptScreen(receipt: receipt)),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ãƒâ€°chec de la vente : $error'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.success,
-      ),
-    );
-    Navigator.of(context).pop();
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   String _paymentMethodLabel(String method) => switch (method) {
-    'cash'   => 'Espèces',
-    'mtn'    => 'MTN MoMo',
-    'orange' => 'Orange Money',
-    'other'  => 'Autre',
-    _        => method,
-  };
+        'cash' => 'EspÃƒÂ¨ces',
+        'mtn' => 'MTN MoMo',
+        'orange' => 'Orange Money',
+        'other' => 'Autre',
+        _ => method,
+      };
 
   @override
   Widget build(BuildContext context) {
-    final cart       = ref.watch(cartProvider);
-    final subtotal   = ref.watch(cartTotalProvider);
-    final total      = _calculate(subtotal);
+    final cart = ref.watch(cartProvider);
+    final subtotal = ref.watch(cartTotalProvider);
+    final total = _calculate(subtotal);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -192,46 +182,42 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       appBar: AppBar(
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
-        title: const Text('Encaissement',
-            style: AppTypography.titleLarge),
+        title: const Text('Encaissement', style: AppTypography.titleLarge),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-
-          // ── Cart summary ─────────────────────────────────────────
+          // Ã¢â€â‚¬Ã¢â€â‚¬ Cart summary Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
           _SectionCard(
             title: 'Articles (${cart.length})',
             child: Column(
               children: [
                 ...cart.map((item) => Padding(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.xs),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${item.product.name} ×${item.quantity}',
-                          style: AppTypography.bodyMedium,
-                        ),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${item.product.name} Ãƒâ€”${item.quantity}',
+                              style: AppTypography.bodyMedium,
+                            ),
+                          ),
+                          Text(
+                            _fmt(item.subtotalFCFA),
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        _fmt(item.subtotalFCFA),
-                        style: AppTypography.bodyMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
+                    )),
                 const Divider(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Sous-total',
-                        style: AppTypography.titleSmall),
-                    Text(_fmt(subtotal),
-                        style: AppTypography.titleSmall),
+                    Text('Sous-total', style: AppTypography.titleSmall),
+                    Text(_fmt(subtotal), style: AppTypography.titleSmall),
                   ],
                 ),
               ],
@@ -240,12 +226,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
           const SizedBox(height: AppSpacing.md),
 
-          // ── Adjustments ──────────────────────────────────────────
+          // Ã¢â€â‚¬Ã¢â€â‚¬ Adjustments Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
           _SectionCard(
             title: 'Ajustements',
             child: Column(
               children: [
-
                 // Discount
                 _AmountField(
                   label: 'Remise (FCFA)',
@@ -283,11 +268,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                       children: [
                         Switch(
                           value: _taxIncluded,
-                          onChanged: (v) =>
-                              setState(() => _taxIncluded = v),
+                          onChanged: (v) => setState(() => _taxIncluded = v),
                         ),
                         Text(
-                          _taxIncluded ? 'Activée' : 'Désactivée',
+                          _taxIncluded ? 'ActivÃƒÂ©e' : 'DÃƒÂ©sactivÃƒÂ©e',
                           style: AppTypography.labelSmall.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -325,7 +309,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
           const SizedBox(height: AppSpacing.md),
 
-          // ── Payment method ───────────────────────────────────────
+          // Ã¢â€â‚¬Ã¢â€â‚¬ Payment method Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
           _SectionCard(
             title: 'Mode de paiement',
             child: RadioGroup<String>(
@@ -335,7 +319,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                 children: [
                   _PaymentOption(
                     value: 'cash',
-                    label: 'Espèces',
+                    label: 'EspÃƒÂ¨ces',
                     subtitle: 'Paiement en main propre',
                     icon: Icons.payments_outlined,
                     color: AppColors.success,
@@ -343,24 +327,38 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   _PaymentOption(
                     value: 'mtn',
                     label: 'MTN Mobile Money',
-                    subtitle: 'Le vendeur confirme la réception',
+                    subtitle: 'Le vendeur confirme la rÃƒÂ©ception',
                     icon: Icons.phone_android_outlined,
                     color: AppColors.mtnYellowDark,
                   ),
                   _PaymentOption(
                     value: 'orange',
                     label: 'Orange Money',
-                    subtitle: 'Le vendeur confirme la réception',
+                    subtitle: 'Le vendeur confirme la rÃƒÂ©ception',
                     icon: Icons.phone_android_outlined,
                     color: AppColors.orangeOrange,
                   ),
                   _PaymentOption(
                     value: 'other',
                     label: 'Autre',
-                    subtitle: 'Virement, chèque, crédit...',
+                    subtitle: 'Virement, chÃƒÂ¨que, crÃƒÂ©dit...',
                     icon: Icons.more_horiz,
                     color: AppColors.info,
                   ),
+                  if (_paymentMethod != 'cash')
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.sm),
+                      child: TextFormField(
+                        controller: _paymentReferenceController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          labelText: 'RÃƒÂ©fÃƒÂ©rence de transaction',
+                          hintText:
+                              'RÃƒÂ©fÃƒÂ©rence visible sur le reÃƒÂ§u de paiement',
+                          prefixIcon: Icon(Icons.confirmation_number_outlined),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -368,7 +366,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
           const SizedBox(height: AppSpacing.md),
 
-          // ── Total ────────────────────────────────────────────────
+          // Ã¢â€â‚¬Ã¢â€â‚¬ Total Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
@@ -413,14 +411,22 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
           const SizedBox(height: AppSpacing.xl),
 
-          // ── Confirm button ───────────────────────────────────────
+          // Ã¢â€â‚¬Ã¢â€â‚¬ Confirm button Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
           SizedBox(
             height: AppSpacing.buttonHeight,
             child: FilledButton.icon(
-              onPressed: () => _confirmSale(total, cart, subtotal),
-              icon: const Icon(Icons.check_circle_outline),
+              onPressed: _isSubmitting
+                  ? null
+                  : () => _confirmSale(total, cart, subtotal),
+              icon: _isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_outline),
               label: Text(
-                'Confirmer — ${_fmt(total)}',
+                'Confirmer Ã¢â‚¬â€ ${_fmt(total)}',
                 style: AppTypography.buttonLabel,
               ),
             ),
@@ -433,7 +439,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 }
 
-// ─── Reusable widgets ─────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Reusable widgets Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 class _SectionCard extends StatelessWidget {
   final String title;

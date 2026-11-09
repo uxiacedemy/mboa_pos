@@ -1,63 +1,112 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'core/design/design_tokens.dart';
 import 'core/router/app_router.dart';
+import 'firebase_options.dart';
+import 'core/design/theme_provider.dart';
+import 'l10n/app_localizations.dart';
 
+const _emulatorHost = String.fromEnvironment(
+  'FIREBASE_EMULATOR_HOST',
+  defaultValue: '127.0.0.1',
+);
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Object? firebaseInitializationError;
-  try {
-    await Firebase.initializeApp();
-  } catch (error) {
-    firebaseInitializationError = error;
-  }
   runApp(
     ProviderScope(
-      child: MboaPOSApp(firebaseInitializationError: firebaseInitializationError),
+      child: MboaPOSApp(
+        firebaseInitialization: _initializeFirebase(),
+      ),
     ),
   );
 }
 
+Future<Object?> _initializeFirebase() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    if (kDebugMode) {
+      await _connectToFirebaseEmulators();
+    }
+    return null;
+  } on Object catch (error) {
+    return error;
+  }
+}
+
+Future<void> _connectToFirebaseEmulators() async {
+  final auth = FirebaseAuth.instance;
+  if (kIsWeb) {
+    await auth.useAuthEmulator(
+      '127.0.0.1',
+      9099,
+      automaticHostMapping: false,
+    );
+  } else {
+    await auth.useAuthEmulator(_emulatorHost, 9099);
+  }
+  FirebaseFirestore.instance.useFirestoreEmulator(_emulatorHost, 8080);
+  FirebaseFunctions.instanceFor(region: 'europe-west1')
+      .useFunctionsEmulator(_emulatorHost, 5001);
+}
+
 class MboaPOSApp extends ConsumerWidget {
-  final Object? firebaseInitializationError;
+  final Future<Object?> firebaseInitialization;
 
   const MboaPOSApp({
     super.key,
-    this.firebaseInitializationError,
+    required this.firebaseInitialization,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (firebaseInitializationError != null) {
-      return MaterialApp(
-        title: 'MboaPOS',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        home: FirebaseStartupErrorScreen(error: firebaseInitializationError!),
-      );
-    }
+    return FutureBuilder<Object?>(
+      future: firebaseInitialization,
+      builder: (context, snapshot) {
+        if (snapshot.hasError || snapshot.data is Object) {
+          return MaterialApp(
+            title: 'MboaPOS',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(),
+            home: FirebaseStartupErrorScreen(
+              error: snapshot.error ?? snapshot.data as Object,
+            ),
+          );
+        }
 
-    final router = ref.watch(appRouterProvider);
+        if (snapshot.connectionState != ConnectionState.done) {
+          return MaterialApp(
+            title: 'MboaPOS',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(),
+            home: const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          );
+        }
 
-    return MaterialApp.router(
-      title: 'MboaPOS',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('fr'),
-        Locale('en'),
-      ],
-      locale: const Locale('fr'),
-      routerConfig: router,
+        final router = ref.watch(appRouterProvider);
+
+        return MaterialApp.router(
+          title: 'MboaPOS',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ref.watch(themeModeProvider),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('fr'),
+          routerConfig: router,
+        );
+      },
     );
   }
 }

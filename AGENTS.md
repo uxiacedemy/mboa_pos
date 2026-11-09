@@ -135,7 +135,7 @@ New terminal sessions default to `C:\Windows\system32` — always confirm `pwd`/
 - [ ] (2) Minimal auth — staff PIN login, StaffUser session, route redirect — Partial: sign-in/session/device identity and authentication-only redirect added; session restoration remains
 - [x] (3) Provision `organizationId`/role via Cloud Function custom claims (Admin SDK) — `functions/src/index.ts`, callable in `europe-west1`
 - [ ] (4) Thread real organizationId/actorId/deviceId into payment_screen.dart
-- [ ] (5) Idempotency key on checkout transaction
+- [x] (5) Idempotency key on checkout transaction — checkout UUID is reused for retries and transaction document existence is checked atomically
 - [ ] (6) Confirm-button loading/disabled state during async transaction
 - [ ] (7) Drift offline persistence — products, pending sales, receipts, sync queue
 - [ ] (8) Receipt construction and persistence — numbering, NIU, TVA, timestamps
