@@ -5,7 +5,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { randomUUID } from "node:crypto";
 
 const adminRoles = new Set(["owner", "admin"]);
-const staffRoles = new Set(["cashier", "supervisor", "manager", "admin"]);
+const staffRoles = new Set(["owner", "cashier", "supervisor", "manager", "admin"]);
 
 interface ProvisionStaffClaimsRequest { uid?: unknown; organizationId?: unknown; role?: unknown; }
 interface ProvisionStaffClaimsResponse { uid: string; organizationId: string; role: string; }

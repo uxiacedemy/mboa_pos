@@ -1,9 +1,25 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/models/staff_user.dart';
+import '../../../sales/data/checkout_sync_service.dart';
+
+enum AuthStatus { restoring, signedOut, authenticated }
+
+final authStatusProvider =
+    NotifierProvider<AuthStatusNotifier, AuthStatus>(AuthStatusNotifier.new);
+
+class AuthStatusNotifier extends Notifier<AuthStatus> {
+  @override
+  AuthStatus build() => AuthStatus.restoring;
+
+  void setStatus(AuthStatus value) => state = value;
+}
 
 final authProvider =
     NotifierProvider<AuthNotifier, StaffUser?>(AuthNotifier.new);
@@ -27,27 +43,28 @@ class AuthFailure implements Exception {
 
 class AuthNotifier extends Notifier<StaffUser?> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  bool _restoring = false;
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   StaffUser? build() {
-    _auth.authStateChanges().listen(_restoreSession);
+    ref.onDispose(() => _authSubscription?.cancel());
+    ref.read(authStatusProvider.notifier).setStatus(AuthStatus.restoring);
+    _authSubscription = _auth.authStateChanges().listen(_restoreSession);
     return null;
   }
 
   Future<void> _restoreSession(User? user) async {
-    if (user == null || _restoring) {
-      if (user == null) state = null;
+    if (user == null) {
+      state = null;
+      ref.read(authStatusProvider.notifier).setStatus(AuthStatus.signedOut);
       return;
     }
-    _restoring = true;
     try {
       await _setUserFromClaims(user, requireOwnerOrStaff: false);
     } catch (_) {
       await _auth.signOut();
       state = null;
-    } finally {
-      _restoring = false;
+      ref.read(authStatusProvider.notifier).setStatus(AuthStatus.signedOut);
     }
   }
 
@@ -148,9 +165,32 @@ class AuthNotifier extends Notifier<StaffUser?> {
           'This account has been disabled. Contact your administrator.');
     }
     final role = StaffRole.values.firstWhere((value) => value.name == roleName);
+    await _verifyMembership(user.uid, organizationId, role);
     state =
         StaffUser(uid: user.uid, organizationId: organizationId, role: role);
+    ref.read(authStatusProvider.notifier).setStatus(AuthStatus.authenticated);
+    unawaited(
+        CheckoutSyncService().syncPending(organizationId: organizationId));
     if (requireOwnerOrStaff) return;
+  }
+
+  Future<void> _verifyMembership(
+    String uid,
+    String organizationId,
+    StaffRole role,
+  ) async {
+    final snapshot = await FirebaseFirestore.instance
+        .doc('organizations/$organizationId/staff/$uid')
+        .get();
+    final data = snapshot.data();
+    if (!snapshot.exists ||
+        data?['organizationId'] != organizationId ||
+        data?['active'] == false ||
+        data?['role'] != role.name) {
+      throw const AuthFailure(
+        'This account is not an active member of this business.',
+      );
+    }
   }
 
   String _messageFor(FirebaseAuthException error) => switch (error.code) {

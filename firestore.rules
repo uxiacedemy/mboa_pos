@@ -16,13 +16,13 @@ service cloud.firestore {
     function roleAtLeast(role) {
       return signedIn() && (
         (role == 'admin'
-          && request.auth.token.role == 'admin') ||
+          && request.auth.token.role in ['owner', 'admin']) ||
         (role == 'manager'
-          && request.auth.token.role in ['manager', 'admin']) ||
+          && request.auth.token.role in ['owner', 'manager', 'admin']) ||
         (role == 'supervisor'
-          && request.auth.token.role in ['supervisor', 'manager', 'admin']) ||
+          && request.auth.token.role in ['owner', 'supervisor', 'manager', 'admin']) ||
         (role == 'cashier'
-          && request.auth.token.role in ['cashier', 'supervisor', 'manager', 'admin'])
+          && request.auth.token.role in ['owner', 'cashier', 'supervisor', 'manager', 'admin'])
       );
     }
 

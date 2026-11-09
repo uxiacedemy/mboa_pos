@@ -7,6 +7,8 @@ enum SyncStatus { synced, pending, offline, conflict }
 class SyncStatusNotifier extends Notifier<SyncStatus> {
   @override
   SyncStatus build() => SyncStatus.synced;
+
+  void markPending() => state = SyncStatus.pending;
 }
 
 final syncStatusProvider = NotifierProvider<SyncStatusNotifier, SyncStatus>(

@@ -9,6 +9,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
 import '../../domain/models/cart_item.dart';
 import '../../domain/models/receipt.dart';
+import '../../data/checkout_persistence.dart';
 import 'receipt_screen.dart';
 
 class PaymentScreen extends ConsumerStatefulWidget {
@@ -83,11 +84,22 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       if (staffUser == null) {
         throw StateError('No authenticated staff session.');
       }
-      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
-          .httpsCallable('commitCheckout');
-      final result = await callable.call<Map<String, dynamic>>({
+      final tax =
+          _taxIncluded ? _taxFor((subtotal - _discount).clamp(0, subtotal)) : 0;
+      final localReceipt = _buildReceipt(
+        staffUser.uid,
+        cart,
+        subtotal,
+        total,
+        tax,
+        _checkoutId,
+        DateTime.now(),
+      );
+      final payload = <String, dynamic>{
         'idempotencyKey': _checkoutId,
         'deviceId': deviceId,
+        'organizationId': staffUser.organizationId,
+        'actorId': staffUser.uid,
         'lines': [
           for (final item in cart)
             {
@@ -107,7 +119,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         'paymentReference': _paymentMethod == 'cash'
             ? null
             : _paymentReferenceController.text.trim(),
-      });
+        'localReceipt': localReceipt.toJson(),
+      };
+      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('commitCheckout');
+      final result = await callable.call<Map<String, dynamic>>(payload);
       final response = result.data;
       final issuedAt =
           DateTime.tryParse(response['issuedAt'] as String? ?? '') ??
@@ -141,12 +157,73 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             ? null
             : _paymentReferenceController.text.trim(),
       );
+      await localCheckoutStore.saveReceipt(receipt);
+      await localCheckoutStore.saveStockMovements(
+        _movementRecords(payload, synced: true),
+      );
       if (!mounted) return;
       ref.read(cartProvider.notifier).clearCart();
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => ReceiptScreen(receipt: receipt)),
       );
     } catch (error) {
+      if (_isRetryable(error)) {
+        final staffUser = ref.read(authProvider);
+        if (staffUser != null) {
+          final deviceId = await ref.read(deviceIdProvider.future);
+          final tax = _taxIncluded
+              ? _taxFor((subtotal - _discount).clamp(0, subtotal))
+              : 0;
+          final localReceipt = _buildReceipt(
+            staffUser.uid,
+            cart,
+            subtotal,
+            total,
+            tax,
+            _checkoutId,
+            DateTime.now(),
+          );
+          final payload = <String, dynamic>{
+            'idempotencyKey': _checkoutId,
+            'deviceId': deviceId,
+            'organizationId': staffUser.organizationId,
+            'actorId': staffUser.uid,
+            'lines': [
+              for (final item in cart)
+                {'productId': item.product.id, 'quantity': item.quantity},
+            ],
+            'subtotalFCFA': subtotal,
+            'discountFCFA': _discount,
+            'deliveryFCFA': _delivery,
+            'taxFCFA': tax,
+            'taxRateBasisPoints': _taxRateBasisPoints,
+            'totalFCFA': total,
+            'paymentMethod': _paymentMethod,
+            'paymentReference': _paymentMethod == 'cash'
+                ? null
+                : _paymentReferenceController.text.trim(),
+            'localReceipt': localReceipt.toJson(),
+          };
+          await localCheckoutStore.enqueue(PendingCheckout(
+            idempotencyKey: _checkoutId,
+            payload: payload,
+            queuedAt: DateTime.now(),
+          ));
+          await localCheckoutStore.saveReceipt(localReceipt);
+          await localCheckoutStore.saveStockMovements(
+            _movementRecords(payload, synced: false),
+          );
+          if (!mounted) return;
+          ref.read(syncStatusProvider.notifier).markPending();
+          ref.read(cartProvider.notifier).clearCart();
+          await Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => ReceiptScreen(receipt: localReceipt),
+            ),
+          );
+          return;
+        }
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -160,6 +237,75 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  ReceiptData _buildReceipt(
+    String cashierId,
+    List<CartItem> cart,
+    int subtotal,
+    int total,
+    int tax,
+    String receiptNumber,
+    DateTime issuedAt,
+  ) {
+    return ReceiptData(
+      receiptNumber: receiptNumber,
+      issuedAt: issuedAt,
+      organizationName: 'MboaPOS',
+      organizationNiu: 'Non configuré',
+      organizationAddress: 'Adresse non configurée',
+      cashierName: cashierId,
+      items: [
+        for (final item in cart)
+          ReceiptLine(
+            name: item.product.name,
+            quantity: item.quantity,
+            unitPriceFCFA: item.product.priceFCFA,
+            subtotalFCFA: item.product.priceFCFA * item.quantity,
+          ),
+      ],
+      subtotalFCFA: subtotal,
+      discountFCFA: _discount,
+      deliveryFCFA: _delivery,
+      taxFCFA: tax,
+      taxRate: _taxRateBasisPoints / 10000,
+      totalFCFA: total,
+      paymentMethod: _paymentMethodLabel(_paymentMethod),
+      paymentReference: _paymentMethod == 'cash'
+          ? null
+          : _paymentReferenceController.text.trim(),
+    );
+  }
+
+  bool _isRetryable(Object error) =>
+      error is FirebaseFunctionsException &&
+      const {
+        'unavailable',
+        'deadline-exceeded',
+        'internal',
+        'aborted',
+        'cancelled',
+      }.contains(error.code);
+
+  List<Map<String, dynamic>> _movementRecords(
+    Map<String, dynamic> payload, {
+    required bool synced,
+  }) {
+    final lines = (payload['lines'] as List).cast<Map>();
+    return [
+      for (final line in lines)
+        {
+          'id': '${payload['idempotencyKey']}:${line['productId']}',
+          'organizationId': payload['organizationId'],
+          'productId': line['productId'],
+          'quantity': -(line['quantity'] as int),
+          'type': 'saleDeduction',
+          'actorId': payload['actorId'],
+          'deviceId': payload['deviceId'],
+          'occurredAt': (payload['localReceipt'] as Map)['issuedAt'],
+          'syncStatus': synced ? 'synced' : 'pending',
+        },
+    ];
   }
 
   String _paymentMethodLabel(String method) => switch (method) {

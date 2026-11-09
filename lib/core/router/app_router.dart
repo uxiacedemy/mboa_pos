@@ -13,6 +13,7 @@ import '../../features/storyboard/presentation/screens/storyboard_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final staffUser = ref.watch(authProvider);
+  final authStatus = ref.watch(authStatusProvider);
   return GoRouter(
     initialLocation: '/pos',
     redirect: (context, state) {
@@ -22,11 +23,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           path == '/reports' ||
           path == '/settings' ||
           path.startsWith('/sales');
+      if (authStatus == AuthStatus.restoring) {
+        return path == '/login' || path == '/register' ? null : '/login';
+      }
       if (protected && staffUser == null) return '/login';
       if (path == '/login' && staffUser != null) return '/pos';
       if (path == '/reports' &&
           staffUser != null &&
-          staffUser.role == StaffRole.cashier) {
+          !{
+            StaffRole.owner,
+            StaffRole.admin,
+            StaffRole.manager,
+            StaffRole.supervisor,
+          }.contains(staffUser.role)) {
+        return '/pos';
+      }
+      if (path == '/inventory' &&
+          staffUser != null &&
+          !{
+            StaffRole.owner,
+            StaffRole.admin,
+            StaffRole.manager,
+            StaffRole.supervisor,
+          }.contains(staffUser.role)) {
         return '/pos';
       }
       if (path == '/settings' &&
