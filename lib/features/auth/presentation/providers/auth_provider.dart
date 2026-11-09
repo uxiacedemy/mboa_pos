@@ -9,20 +9,20 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/staff_user.dart';
 import '../../../sales/data/checkout_sync_service.dart';
 
-enum AuthStatus { restoring, signedOut, authenticated }
-
-final authStatusProvider =
-    NotifierProvider<AuthStatusNotifier, AuthStatus>(AuthStatusNotifier.new);
-
-class AuthStatusNotifier extends Notifier<AuthStatus> {
-  @override
-  AuthStatus build() => AuthStatus.restoring;
-
-  void setStatus(AuthStatus value) => state = value;
-}
+enum AuthStatus { unknown, unauthenticated, authenticated }
 
 final authProvider =
-    NotifierProvider<AuthNotifier, StaffUser?>(AuthNotifier.new);
+    AsyncNotifierProvider<AuthNotifier, StaffUser?>(AuthNotifier.new);
+
+final authStatusProvider = Provider<AuthStatus>((ref) {
+  final auth = ref.watch(authProvider);
+  return auth.when(
+    loading: () => AuthStatus.unknown,
+    error: (_, __) => AuthStatus.unauthenticated,
+    data: (user) =>
+        user == null ? AuthStatus.unauthenticated : AuthStatus.authenticated,
+  );
+});
 
 final deviceIdProvider = FutureProvider<String>((ref) async {
   const storage = FlutterSecureStorage();
@@ -41,30 +41,18 @@ class AuthFailure implements Exception {
   String toString() => message;
 }
 
-class AuthNotifier extends Notifier<StaffUser?> {
+class AuthNotifier extends AsyncNotifier<StaffUser?> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  StreamSubscription<User?>? _authSubscription;
 
   @override
-  StaffUser? build() {
-    ref.onDispose(() => _authSubscription?.cancel());
-    ref.read(authStatusProvider.notifier).setStatus(AuthStatus.restoring);
-    _authSubscription = _auth.authStateChanges().listen(_restoreSession);
-    return null;
-  }
-
-  Future<void> _restoreSession(User? user) async {
-    if (user == null) {
-      state = null;
-      ref.read(authStatusProvider.notifier).setStatus(AuthStatus.signedOut);
-      return;
-    }
+  Future<StaffUser?> build() async {
+    final user = await _auth.authStateChanges().first;
+    if (user == null) return null;
     try {
-      await _setUserFromClaims(user, requireOwnerOrStaff: false);
+      return await _sessionForUser(user);
     } catch (_) {
       await _auth.signOut();
-      state = null;
-      ref.read(authStatusProvider.notifier).setStatus(AuthStatus.signedOut);
+      return null;
     }
   }
 
@@ -78,7 +66,8 @@ class AuthNotifier extends Notifier<StaffUser?> {
         email: '$id@mboapos.internal',
         password: pin,
       );
-      await _setUserFromClaims(credential.user!, requireOwnerOrStaff: true);
+      final session = await _sessionForUser(credential.user!);
+      state = AsyncData(session);
     } on FirebaseAuthException catch (error) {
       throw AuthFailure(_messageFor(error));
     }
@@ -99,8 +88,8 @@ class AuthNotifier extends Notifier<StaffUser?> {
         await _auth.signOut();
         throw const AuthFailure('Verify your email before signing in.');
       }
-      await _setUserFromClaims(user,
-          requireOwnerOrStaff: true, ownerOnly: true);
+      final session = await _sessionForUser(user, ownerOnly: true);
+      state = AsyncData(session);
     } on FirebaseAuthException catch (error) {
       throw AuthFailure(_messageFor(error));
     }
@@ -139,9 +128,8 @@ class AuthNotifier extends Notifier<StaffUser?> {
     }
   }
 
-  Future<void> _setUserFromClaims(
+  Future<StaffUser> _sessionForUser(
     User user, {
-    required bool requireOwnerOrStaff,
     bool ownerOnly = false,
   }) async {
     final token = await user.getIdTokenResult(true);
@@ -166,12 +154,11 @@ class AuthNotifier extends Notifier<StaffUser?> {
     }
     final role = StaffRole.values.firstWhere((value) => value.name == roleName);
     await _verifyMembership(user.uid, organizationId, role);
-    state =
+    final session =
         StaffUser(uid: user.uid, organizationId: organizationId, role: role);
-    ref.read(authStatusProvider.notifier).setStatus(AuthStatus.authenticated);
     unawaited(
         CheckoutSyncService().syncPending(organizationId: organizationId));
-    if (requireOwnerOrStaff) return;
+    return session;
   }
 
   Future<void> _verifyMembership(
@@ -211,6 +198,6 @@ class AuthNotifier extends Notifier<StaffUser?> {
 
   Future<void> signOut() async {
     await _auth.signOut();
-    state = null;
+    state = const AsyncData(null);
   }
 }

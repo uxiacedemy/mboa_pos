@@ -78,7 +78,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final staffUser = ref.read(authProvider);
+      final staffUser = ref.read(authProvider).value;
       final deviceId = await ref.read(deviceIdProvider.future);
       if (!mounted) return;
       if (staffUser == null) {
@@ -168,7 +168,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       );
     } catch (error) {
       if (_isRetryable(error)) {
-        final staffUser = ref.read(authProvider);
+        final staffUser = ref.read(authProvider).value;
         if (staffUser != null) {
           final deviceId = await ref.read(deviceIdProvider.future);
           final tax = _taxIncluded

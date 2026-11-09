@@ -15,6 +15,10 @@ const _emulatorHost = String.fromEnvironment(
   'FIREBASE_EMULATOR_HOST',
   defaultValue: '127.0.0.1',
 );
+const _useFirebaseEmulators = bool.fromEnvironment(
+  'USE_FIREBASE_EMULATORS',
+  defaultValue: false,
+);
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
@@ -31,7 +35,7 @@ Future<Object?> _initializeFirebase() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    if (kDebugMode) {
+    if (kDebugMode && _useFirebaseEmulators) {
       await _connectToFirebaseEmulators();
     }
     return null;

@@ -12,7 +12,7 @@ import '../../features/shell/presentation/screens/main_shell.dart';
 import '../../features/storyboard/presentation/screens/storyboard_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final staffUser = ref.watch(authProvider);
+  final staffUser = ref.watch(authProvider).value;
   final authStatus = ref.watch(authStatusProvider);
   return GoRouter(
     initialLocation: '/pos',
@@ -23,7 +23,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           path == '/reports' ||
           path == '/settings' ||
           path.startsWith('/sales');
-      if (authStatus == AuthStatus.restoring) {
+      if (authStatus == AuthStatus.unknown) {
         return path == '/login' || path == '/register' ? null : '/login';
       }
       if (protected && staffUser == null) return '/login';
