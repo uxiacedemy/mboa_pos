@@ -2,7 +2,6 @@
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { randomUUID } from "node:crypto";
 
 const adminRoles = new Set(["owner", "admin"]);
 const staffRoles = new Set(["owner", "cashier", "supervisor", "manager", "admin"]);
@@ -47,13 +46,27 @@ export const createOrganizationOwner = onCall<CreateOrganizationOwnerRequest, Pr
     if (!uid || typeof email !== "string" || !email.includes("@")) throw new HttpsError("unauthenticated", "Authentication is required.");
     const businessName = typeof request.data.businessName === "string" ? request.data.businessName.trim() : "";
     if (businessName.length < 2 || businessName.length > 120) throw new HttpsError("invalid-argument", "A valid business name is required.");
-    const organizationId = randomUUID();
+    // The UID-derived key makes provisioning resumable. A retry after a
+    // failed claim update addresses the same organization and staff record.
+    const organizationId = `owner_${uid}`;
     const db = getFirestore();
     const organizationRef = db.doc(`organizations/${organizationId}`);
     const staffRef = organizationRef.collection("staff").doc(uid);
     await db.runTransaction(async (transaction) => {
-      transaction.create(organizationRef, { id: organizationId, name: businessName, ownerUid: uid, createdAt: FieldValue.serverTimestamp() });
-      transaction.create(staffRef, { uid, email, organizationId, role: "owner", active: true, displayName: email.split("@")[0], createdAt: FieldValue.serverTimestamp() });
+      const [organizationSnapshot, staffSnapshot] = await Promise.all([
+        transaction.get(organizationRef),
+        transaction.get(staffRef),
+      ]);
+      if (!organizationSnapshot.exists) {
+        transaction.create(organizationRef, { id: organizationId, name: businessName, ownerUid: uid, createdAt: FieldValue.serverTimestamp() });
+      } else if (organizationSnapshot.data()?.ownerUid !== uid) {
+        throw new HttpsError("permission-denied", "The organization owner does not match this account.");
+      }
+      if (!staffSnapshot.exists) {
+        transaction.create(staffRef, { uid, email, organizationId, role: "owner", active: true, displayName: email.split("@")[0], createdAt: FieldValue.serverTimestamp() });
+      } else if (staffSnapshot.data()?.organizationId !== organizationId || staffSnapshot.data()?.role !== "owner") {
+        throw new HttpsError("failed-precondition", "The owner membership is not valid.");
+      }
     });
     const user = await getAuth().getUser(uid);
     await getAuth().setCustomUserClaims(uid, { ...(user.customClaims ?? {}), organizationId, role: "owner", active: true });
@@ -86,12 +99,12 @@ export const commitCheckout = onCall<CommitCheckoutRequest, Promise<Record<strin
     const methods = new Set(["cash", "mtn", "orange", "other"]);
     if (typeof data.paymentMethod !== "string" || !methods.has(data.paymentMethod)) throw new HttpsError("invalid-argument", "A valid payment method is required.");
     if (data.paymentMethod !== "cash" && (typeof data.paymentReference !== "string" || !data.paymentReference.trim())) throw new HttpsError("invalid-argument", "A payment reference is required.");
-    const subtotalFCFA = integerField(data.subtotalFCFA, "subtotalFCFA");
+    const submittedSubtotalFCFA = integerField(data.subtotalFCFA, "subtotalFCFA");
     const discountFCFA = integerField(data.discountFCFA, "discountFCFA");
     const deliveryFCFA = integerField(data.deliveryFCFA, "deliveryFCFA");
     const taxFCFA = integerField(data.taxFCFA, "taxFCFA");
     const taxRateBasisPoints = integerField(data.taxRateBasisPoints, "taxRateBasisPoints");
-    const totalFCFA = integerField(data.totalFCFA, "totalFCFA");
+    const submittedTotalFCFA = integerField(data.totalFCFA, "totalFCFA");
     const db = getFirestore();
     const transactionRef = db.doc(`organizations/${organizationId}/transactions/${idempotencyKey}`);
     const idempotencyRef = db.doc(`organizations/${organizationId}/checkout_idempotency/${idempotencyKey}`);
@@ -107,6 +120,7 @@ export const commitCheckout = onCall<CommitCheckoutRequest, Promise<Record<strin
         const snapshots = [];
         for (const line of lines) snapshots.push(await transaction.get(db.doc(`organizations/${organizationId}/products/${line.productId}`)));
         const receiptLines: Record<string, unknown>[] = [];
+        let calculatedSubtotalFCFA = 0;
         const movementWrites: Array<{ productRef: FirebaseFirestore.DocumentReference; movementRef: FirebaseFirestore.DocumentReference; line: { productId: string; quantity: number } }> = [];
         for (let index = 0; index < lines.length; index += 1) {
           const line = lines[index]; const snapshot = snapshots[index];
@@ -115,13 +129,30 @@ export const commitCheckout = onCall<CommitCheckoutRequest, Promise<Record<strin
           if (typeof stock !== "number" || !Number.isInteger(stock) || typeof price !== "number" || !Number.isInteger(price)) throw new HttpsError("failed-precondition", `Product ${line.productId} has invalid data.`);
           if (stock < line.quantity) throw new HttpsError("failed-precondition", `Insufficient stock for ${line.productId}.`);
           movementWrites.push({ productRef: snapshot.ref, movementRef: db.collection(`organizations/${organizationId}/inventory_adjustments`).doc(), line });
-          receiptLines.push({ productId: line.productId, name: typeof product.name === "string" ? product.name : line.productId, quantity: line.quantity, unitPriceFCFA: price, subtotalFCFA: price * line.quantity });
+          const lineSubtotalFCFA = price * line.quantity;
+          calculatedSubtotalFCFA += lineSubtotalFCFA;
+          receiptLines.push({ productId: line.productId, name: typeof product.name === "string" ? product.name : line.productId, quantity: line.quantity, unitPriceFCFA: price, subtotalFCFA: lineSubtotalFCFA });
+        }
+        if (submittedSubtotalFCFA !== calculatedSubtotalFCFA) {
+          throw new HttpsError("invalid-argument", "The checkout subtotal does not match current product prices.");
+        }
+        if (discountFCFA > calculatedSubtotalFCFA) {
+          throw new HttpsError("invalid-argument", "The discount cannot exceed the subtotal.");
+        }
+        const taxableFCFA = Math.max(0, calculatedSubtotalFCFA - discountFCFA);
+        const calculatedTaxFCFA = Math.floor((taxableFCFA * taxRateBasisPoints + 5000) / 10000);
+        const calculatedTotalFCFA = taxableFCFA + deliveryFCFA + (taxFCFA > 0 ? calculatedTaxFCFA : 0);
+        if (taxFCFA > 0 && taxFCFA !== calculatedTaxFCFA) {
+          throw new HttpsError("invalid-argument", "The checkout tax does not match the configured rate.");
+        }
+        if (submittedTotalFCFA !== calculatedTotalFCFA) {
+          throw new HttpsError("invalid-argument", "The checkout total is invalid.");
         }
         for (const write of movementWrites) {
           transaction.update(write.productRef, { stockQty: FieldValue.increment(-write.line.quantity) });
           transaction.set(write.movementRef, { id: write.movementRef.id, organizationId, productId: write.line.productId, quantity: -write.line.quantity, type: "saleDeduction", actorId: request.auth!.uid, deviceId, occurredAt: FieldValue.serverTimestamp() });
         }
-        const receipt = { saleId: idempotencyKey, receiptNumber: idempotencyKey, issuedAt: new Date().toISOString(), organizationId, cashierId: request.auth!.uid, deviceId, status: "completed", subtotalFCFA, discountFCFA, deliveryFCFA, taxFCFA, taxRateBasisPoints, totalFCFA, paymentMethod: data.paymentMethod, paymentReference: data.paymentMethod === "cash" ? null : data.paymentReference, lines: receiptLines };
+        const receipt = { saleId: idempotencyKey, receiptNumber: idempotencyKey, issuedAt: new Date().toISOString(), organizationId, cashierId: request.auth!.uid, deviceId, status: "completed", subtotalFCFA: calculatedSubtotalFCFA, discountFCFA, deliveryFCFA, taxFCFA: taxFCFA > 0 ? calculatedTaxFCFA : 0, taxRateBasisPoints, totalFCFA: calculatedTotalFCFA, paymentMethod: data.paymentMethod, paymentReference: data.paymentMethod === "cash" ? null : data.paymentReference, lines: receiptLines };
         transaction.create(transactionRef, { ...receipt, createdAt: FieldValue.serverTimestamp() });
         transaction.create(idempotencyRef, { receipt, createdAt: FieldValue.serverTimestamp() });
         return receipt;

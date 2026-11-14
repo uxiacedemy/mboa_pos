@@ -30,7 +30,7 @@ final deviceIdProvider = FutureProvider<String>((ref) async {
   final existing = await storage.read(key: key);
   if (existing != null && existing.isNotEmpty) return existing;
   final deviceId = const Uuid().v4();
-  await storage.write(key: deviceId, value: deviceId);
+  await storage.write(key: key, value: deviceId);
   return deviceId;
 });
 
@@ -50,8 +50,12 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
     if (user == null) return null;
     try {
       return await _sessionForUser(user);
+    } on AuthFailure {
+      // Keep an incomplete owner registration signed in so it can be resumed
+      // from the registration screen. Protected routes remain unavailable
+      // until the backend provisions and verifies the organization membership.
+      return null;
     } catch (_) {
-      await _auth.signOut();
       return null;
     }
   }
@@ -101,11 +105,15 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
     required String businessName,
   }) async {
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      final user = credential.user!;
+      final normalizedEmail = email.trim();
+      final current = _auth.currentUser;
+      final user = current != null && current.email == normalizedEmail
+          ? current
+          : (await _auth.createUserWithEmailAndPassword(
+              email: normalizedEmail,
+              password: password,
+            ))
+              .user!;
       final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
           .httpsCallable('createOrganizationOwner');
       await callable.call({'businessName': businessName.trim()});
@@ -113,10 +121,21 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
       await _auth.signOut();
     } on FirebaseAuthException catch (error) {
       throw AuthFailure(_messageFor(error));
-    } on FirebaseFunctionsException catch (_) {
-      await _auth.signOut();
-      throw const AuthFailure(
-          'We could not create your business account. Try again.');
+    } on FirebaseFunctionsException catch (error) {
+      throw AuthFailure(switch (error.code) {
+        'not-found' =>
+          'Business setup is temporarily unavailable because the server service is not deployed yet.',
+        'invalid-argument' ||
+        'permission-denied' ||
+        'failed-precondition' =>
+          'We could not complete the business details. Check them and try again.',
+        'unavailable' ||
+        'deadline-exceeded' ||
+        'internal' ||
+        'aborted' =>
+          'The business setup is incomplete. Check your connection and retry.',
+        _ => 'We could not create your business account. Try again.',
+      });
     }
   }
 
