@@ -137,7 +137,7 @@ abstract class AppLocalizations {
   /// No description provided for @noResults.
   ///
   /// In fr, this message translates to:
-  /// **'Aucun rÃ©sultat pour \"{query}\"'**
+  /// **'Aucun résultat pour \"{query}\"'**
   String noResults(String query);
 
   /// No description provided for @articles.
@@ -149,7 +149,7 @@ abstract class AppLocalizations {
   /// No description provided for @synced.
   ///
   /// In fr, this message translates to:
-  /// **'SynchronisÃ©'**
+  /// **'Synchronisé'**
   String get synced;
 
   /// No description provided for @pending.
@@ -191,7 +191,7 @@ abstract class AppLocalizations {
   /// No description provided for @navSettings.
   ///
   /// In fr, this message translates to:
-  /// **'ParamÃ¨tres'**
+  /// **'Paramètres'**
   String get navSettings;
 
   /// No description provided for @loginTitle.
@@ -227,13 +227,13 @@ abstract class AppLocalizations {
   /// No description provided for @comingSoon.
   ///
   /// In fr, this message translates to:
-  /// **'BientÃ´t disponible'**
+  /// **'Bientôt disponible'**
   String get comingSoon;
 
   /// No description provided for @paymentComingSoon.
   ///
   /// In fr, this message translates to:
-  /// **'Paiement â€” bientÃ´t disponible'**
+  /// **'Paiement — bientôt disponible'**
   String get paymentComingSoon;
 
   /// No description provided for @storeSubtitle.
@@ -259,6 +259,18 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Produits'**
   String get products;
+
+  /// No description provided for @quantity.
+  ///
+  /// In fr, this message translates to:
+  /// **'Qté'**
+  String get quantity;
+
+  /// No description provided for @unitPrice.
+  ///
+  /// In fr, this message translates to:
+  /// **'Prix'**
+  String get unitPrice;
 
   /// No description provided for @availableProducts.
   ///
@@ -464,6 +476,90 @@ abstract class AppLocalizations {
   /// **'Propriétaire'**
   String get authOwner;
 
+  /// No description provided for @loginLanguageLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue'**
+  String get loginLanguageLabel;
+
+  /// No description provided for @languageFrench.
+  ///
+  /// In fr, this message translates to:
+  /// **'Français'**
+  String get languageFrench;
+
+  /// No description provided for @languageEnglish.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anglais'**
+  String get languageEnglish;
+
+  /// No description provided for @welcomeTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Bienvenue sur MboaPOS'**
+  String get welcomeTitle;
+
+  /// No description provided for @welcomeBody.
+  ///
+  /// In fr, this message translates to:
+  /// **'Gérez vos ventes et votre stock, même hors ligne.'**
+  String get welcomeBody;
+
+  /// No description provided for @welcomeStart.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer'**
+  String get welcomeStart;
+
+  /// No description provided for @welcomeContinueError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible d’enregistrer votre choix. Réessayez.'**
+  String get welcomeContinueError;
+
+  /// No description provided for @entryChoiceTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Comment souhaitez-vous continuer ?'**
+  String get entryChoiceTitle;
+
+  /// No description provided for @entryChoiceDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisissez votre espace.'**
+  String get entryChoiceDescription;
+
+  /// No description provided for @staffLoginChoice.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion de l’équipe'**
+  String get staffLoginChoice;
+
+  /// No description provided for @ownerLoginChoice.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion du propriétaire'**
+  String get ownerLoginChoice;
+
+  /// No description provided for @backToEntry.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changer de méthode'**
+  String get backToEntry;
+
+  /// No description provided for @entryLoadingError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de préparer l’écran de démarrage.'**
+  String get entryLoadingError;
+
+  /// No description provided for @entryRetry.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réessayer'**
+  String get entryRetry;
+
   /// No description provided for @authWelcome.
   ///
   /// In fr, this message translates to:
@@ -661,6 +757,540 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Fermer'**
   String get authClose;
+
+  /// No description provided for @firebaseSetupTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Firebase n’est pas configuré'**
+  String get firebaseSetupTitle;
+
+  /// No description provided for @firebaseSetupBody.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajoutez la configuration Firebase de cette plateforme, puis relancez l’application.'**
+  String get firebaseSetupBody;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paramètres'**
+  String get settingsTitle;
+
+  /// No description provided for @appearance.
+  ///
+  /// In fr, this message translates to:
+  /// **'Apparence'**
+  String get appearance;
+
+  /// No description provided for @appearanceDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisissez l’affichage le plus confortable pour votre caisse.'**
+  String get appearanceDescription;
+
+  /// No description provided for @lightTheme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Écran blanc'**
+  String get lightTheme;
+
+  /// No description provided for @darkTheme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Écran noir'**
+  String get darkTheme;
+
+  /// No description provided for @account.
+  ///
+  /// In fr, this message translates to:
+  /// **'Compte'**
+  String get account;
+
+  /// No description provided for @signOut.
+  ///
+  /// In fr, this message translates to:
+  /// **'Se déconnecter'**
+  String get signOut;
+
+  /// No description provided for @signOutDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fermer la session sur cet appareil'**
+  String get signOutDescription;
+
+  /// No description provided for @businessProfile.
+  ///
+  /// In fr, this message translates to:
+  /// **'Informations de l’entreprise'**
+  String get businessProfile;
+
+  /// No description provided for @businessNameLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom de l’entreprise'**
+  String get businessNameLabel;
+
+  /// No description provided for @organizationNiuLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'NIU (facultatif)'**
+  String get organizationNiuLabel;
+
+  /// No description provided for @businessAddressLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse (facultatif)'**
+  String get businessAddressLabel;
+
+  /// No description provided for @saveBusinessProfile.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrer les informations'**
+  String get saveBusinessProfile;
+
+  /// No description provided for @taxSettings.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paramètres de TVA'**
+  String get taxSettings;
+
+  /// No description provided for @taxEnabled.
+  ///
+  /// In fr, this message translates to:
+  /// **'Appliquer la TVA aux ventes'**
+  String get taxEnabled;
+
+  /// No description provided for @taxRateLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Taux de TVA (%)'**
+  String get taxRateLabel;
+
+  /// No description provided for @taxRateOptional.
+  ///
+  /// In fr, this message translates to:
+  /// **'Laisser vide pour désactiver la TVA'**
+  String get taxRateOptional;
+
+  /// No description provided for @saveTaxSettings.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrer la TVA'**
+  String get saveTaxSettings;
+
+  /// No description provided for @settingsSaved.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paramètres enregistrés.'**
+  String get settingsSaved;
+
+  /// No description provided for @settingsSaveFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible d’enregistrer : {error}'**
+  String settingsSaveFailed(String error);
+
+  /// No description provided for @settingsUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paramètres du commerce indisponibles.'**
+  String get settingsUnavailable;
+
+  /// No description provided for @settingsRetry.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réessayer'**
+  String get settingsRetry;
+
+  /// No description provided for @inventoryTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Inventaire'**
+  String get inventoryTitle;
+
+  /// No description provided for @inventoryComingSoon.
+  ///
+  /// In fr, this message translates to:
+  /// **'La gestion de l’inventaire sera bientôt disponible.'**
+  String get inventoryComingSoon;
+
+  /// No description provided for @reportsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rapports'**
+  String get reportsTitle;
+
+  /// No description provided for @reportsComingSoon.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les rapports seront bientôt disponibles.'**
+  String get reportsComingSoon;
+
+  /// No description provided for @posSubtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Caisse MboaPOS'**
+  String get posSubtitle;
+
+  /// No description provided for @catalogSearch.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher un produit ou un code-barres'**
+  String get catalogSearch;
+
+  /// No description provided for @productsHeading.
+  ///
+  /// In fr, this message translates to:
+  /// **'Produits'**
+  String get productsHeading;
+
+  /// No description provided for @availableCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} disponibles'**
+  String availableCount(int count);
+
+  /// No description provided for @stockCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'Stock {count}'**
+  String stockCount(int count);
+
+  /// No description provided for @outOfStockShort.
+  ///
+  /// In fr, this message translates to:
+  /// **'Épuisé'**
+  String get outOfStockShort;
+
+  /// No description provided for @addToCart.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter'**
+  String get addToCart;
+
+  /// No description provided for @cartTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Panier'**
+  String get cartTitle;
+
+  /// No description provided for @cartItemCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} article(s)'**
+  String cartItemCount(int count);
+
+  /// No description provided for @emptyCartMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre panier est vide.'**
+  String get emptyCartMessage;
+
+  /// No description provided for @totalLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Total'**
+  String get totalLabel;
+
+  /// No description provided for @proceedToPayment.
+  ///
+  /// In fr, this message translates to:
+  /// **'Passer au paiement'**
+  String get proceedToPayment;
+
+  /// No description provided for @checkout.
+  ///
+  /// In fr, this message translates to:
+  /// **'Encaisser'**
+  String get checkout;
+
+  /// No description provided for @noMatchingProducts.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun produit ne correspond à votre recherche.'**
+  String get noMatchingProducts;
+
+  /// No description provided for @catalogLoadFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le catalogue n’a pas pu être actualisé. Les produits enregistrés hors ligne restent disponibles.'**
+  String get catalogLoadFailed;
+
+  /// No description provided for @paymentTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Encaissement'**
+  String get paymentTitle;
+
+  /// No description provided for @cartSummary.
+  ///
+  /// In fr, this message translates to:
+  /// **'Articles ({count})'**
+  String cartSummary(int count);
+
+  /// No description provided for @subtotalLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sous-total'**
+  String get subtotalLabel;
+
+  /// No description provided for @adjustments.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajustements'**
+  String get adjustments;
+
+  /// No description provided for @discountFCFA.
+  ///
+  /// In fr, this message translates to:
+  /// **'Remise (FCFA)'**
+  String get discountFCFA;
+
+  /// No description provided for @deliveryFCFA.
+  ///
+  /// In fr, this message translates to:
+  /// **'Livraison (FCFA)'**
+  String get deliveryFCFA;
+
+  /// No description provided for @taxIncluded.
+  ///
+  /// In fr, this message translates to:
+  /// **'TVA incluse'**
+  String get taxIncluded;
+
+  /// No description provided for @taxDisabled.
+  ///
+  /// In fr, this message translates to:
+  /// **'TVA désactivée'**
+  String get taxDisabled;
+
+  /// No description provided for @paymentMethodTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mode de paiement'**
+  String get paymentMethodTitle;
+
+  /// No description provided for @cashMethod.
+  ///
+  /// In fr, this message translates to:
+  /// **'Espèces'**
+  String get cashMethod;
+
+  /// No description provided for @cashSubtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paiement en espèces'**
+  String get cashSubtitle;
+
+  /// No description provided for @mtnMethod.
+  ///
+  /// In fr, this message translates to:
+  /// **'MTN Mobile Money'**
+  String get mtnMethod;
+
+  /// No description provided for @orangeMethod.
+  ///
+  /// In fr, this message translates to:
+  /// **'Orange Money'**
+  String get orangeMethod;
+
+  /// No description provided for @manualPaymentSubtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le vendeur confirme la réception'**
+  String get manualPaymentSubtitle;
+
+  /// No description provided for @otherMethod.
+  ///
+  /// In fr, this message translates to:
+  /// **'Autre'**
+  String get otherMethod;
+
+  /// No description provided for @otherPaymentSubtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Virement, chèque ou autre mode'**
+  String get otherPaymentSubtitle;
+
+  /// No description provided for @transactionReferenceLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Référence de transaction'**
+  String get transactionReferenceLabel;
+
+  /// No description provided for @transactionReferenceHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Référence visible sur le reçu de paiement'**
+  String get transactionReferenceHint;
+
+  /// No description provided for @paymentReferenceRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisissez la référence du paiement.'**
+  String get paymentReferenceRequired;
+
+  /// No description provided for @saleFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Échec de la vente : {error}'**
+  String saleFailed(String error);
+
+  /// No description provided for @saleNeedsReview.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vente enregistrée localement et à vérifier : {error}'**
+  String saleNeedsReview(String error);
+
+  /// No description provided for @saleSavedOffline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vente enregistrée hors ligne. La synchronisation reprendra automatiquement.'**
+  String get saleSavedOffline;
+
+  /// No description provided for @confirmSale.
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmer — {amount}'**
+  String confirmSale(String amount);
+
+  /// No description provided for @receiptProvisional.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ticket provisoire — synchronisation en attente'**
+  String get receiptProvisional;
+
+  /// No description provided for @receiptNeedsReview.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vente à vérifier avant confirmation serveur'**
+  String get receiptNeedsReview;
+
+  /// No description provided for @receiptNotFiscal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Document non fiscal — informations fiscales non vérifiées'**
+  String get receiptNotFiscal;
+
+  /// No description provided for @receiptFiscalVerified.
+  ///
+  /// In fr, this message translates to:
+  /// **'Profil fiscal vérifié'**
+  String get receiptFiscalVerified;
+
+  /// No description provided for @receiptLocalTime.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heure locale provisoire'**
+  String get receiptLocalTime;
+
+  /// No description provided for @organizationNameMissing.
+  ///
+  /// In fr, this message translates to:
+  /// **'Commerce'**
+  String get organizationNameMissing;
+
+  /// No description provided for @organizationAddressMissing.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse non renseignée'**
+  String get organizationAddressMissing;
+
+  /// No description provided for @organizationNiuMissing.
+  ///
+  /// In fr, this message translates to:
+  /// **'Non renseigné'**
+  String get organizationNiuMissing;
+
+  /// No description provided for @taxFieldInvalid.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisissez un taux entre 0 et 100 %.'**
+  String get taxFieldInvalid;
+
+  /// No description provided for @businessNameRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisissez le nom de l’entreprise.'**
+  String get businessNameRequired;
+
+  /// No description provided for @receiptTax.
+  ///
+  /// In fr, this message translates to:
+  /// **'TVA ({rate} %)'**
+  String receiptTax(Object rate);
+
+  /// No description provided for @authInputRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisissez vos identifiants pour continuer.'**
+  String get authInputRequired;
+
+  /// No description provided for @authVerifyEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vérifiez votre adresse e-mail avant de vous connecter.'**
+  String get authVerifyEmail;
+
+  /// No description provided for @authBusinessUnlinked.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce compte n’est pas membre actif d’un commerce MboaPOS.'**
+  String get authBusinessUnlinked;
+
+  /// No description provided for @authOwnerRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Un accès propriétaire ou administrateur est requis.'**
+  String get authOwnerRequired;
+
+  /// No description provided for @authTooManyAttempts.
+  ///
+  /// In fr, this message translates to:
+  /// **'Trop de tentatives. Patientez avant de réessayer.'**
+  String get authTooManyAttempts;
+
+  /// No description provided for @authAccountExists.
+  ///
+  /// In fr, this message translates to:
+  /// **'Un compte existe déjà pour cette adresse e-mail.'**
+  String get authAccountExists;
+
+  /// No description provided for @authWeakPassword.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisissez un mot de passe plus fort d’au moins 8 caractères.'**
+  String get authWeakPassword;
+
+  /// No description provided for @authInvalidEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisissez une adresse e-mail valide.'**
+  String get authInvalidEmail;
+
+  /// No description provided for @businessSetupUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'La configuration du commerce est temporairement indisponible.'**
+  String get businessSetupUnavailable;
+
+  /// No description provided for @businessSetupInvalid.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les informations du commerce n’ont pas pu être validées.'**
+  String get businessSetupInvalid;
+
+  /// No description provided for @businessSetupRetry.
+  ///
+  /// In fr, this message translates to:
+  /// **'La configuration est incomplète. Vérifiez la connexion et réessayez.'**
+  String get businessSetupRetry;
+
+  /// No description provided for @businessCreateFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de créer le compte du commerce. Réessayez.'**
+  String get businessCreateFailed;
 }
 
 class _AppLocalizationsDelegate

@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -40,10 +42,28 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(AppLocalizations.of(context)!.verificationSent)));
-        context.go('/login');
+        context.go('/entry');
       }
     } on AuthFailure catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) {
+        setState(
+          () => _error = error.localizedMessage(
+            AppLocalizations.of(context)!,
+          ),
+        );
+      }
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'Unexpected business registration failure',
+        name: 'mboapos.auth',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        setState(
+          () => _error = AppLocalizations.of(context)!.businessCreateFailed,
+        );
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -179,7 +199,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                           TextButton(
                                               onPressed: _submitting
                                                   ? null
-                                                  : () => context.go('/login'),
+                                                  : () => context.go('/entry'),
                                               child: Text(l10n.backToLogin)),
                                         ])))))))));
   }

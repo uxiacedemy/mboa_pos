@@ -79,7 +79,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get comingSoon => 'Coming soon';
 
   @override
-  String get paymentComingSoon => 'Payment â€” coming soon';
+  String get paymentComingSoon => 'Payment — coming soon';
 
   @override
   String get storeSubtitle => 'Checkout and inventory';
@@ -92,6 +92,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get products => 'Products';
+
+  @override
+  String get quantity => 'Qty';
+
+  @override
+  String get unitPrice => 'Unit price';
 
   @override
   String availableProducts(int count) {
@@ -202,6 +208,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authOwner => 'Owner';
 
   @override
+  String get loginLanguageLabel => 'Language';
+
+  @override
+  String get languageFrench => 'French';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get welcomeTitle => 'Welcome to MboaPOS';
+
+  @override
+  String get welcomeBody => 'Manage sales and stock, even while offline.';
+
+  @override
+  String get welcomeStart => 'Continue';
+
+  @override
+  String get welcomeContinueError =>
+      'Couldn\'t save your choice. Please try again.';
+
+  @override
+  String get entryChoiceTitle => 'How would you like to continue?';
+
+  @override
+  String get entryChoiceDescription => 'Choose where you want to sign in.';
+
+  @override
+  String get staffLoginChoice => 'Staff sign in';
+
+  @override
+  String get ownerLoginChoice => 'Owner sign in';
+
+  @override
+  String get backToEntry => 'Choose another option';
+
+  @override
+  String get entryLoadingError => 'Couldn\'t prepare the welcome screen.';
+
+  @override
+  String get entryRetry => 'Retry';
+
+  @override
   String get authWelcome => 'Welcome to MboaPOS';
 
   @override
@@ -302,4 +351,304 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authClose => 'Close';
+
+  @override
+  String get firebaseSetupTitle => 'Firebase is not configured';
+
+  @override
+  String get firebaseSetupBody =>
+      'Add the Firebase configuration for this platform, then restart the app.';
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get appearance => 'Appearance';
+
+  @override
+  String get appearanceDescription =>
+      'Choose the display that works best for your checkout.';
+
+  @override
+  String get lightTheme => 'Light';
+
+  @override
+  String get darkTheme => 'Dark';
+
+  @override
+  String get account => 'Account';
+
+  @override
+  String get signOut => 'Sign out';
+
+  @override
+  String get signOutDescription => 'End the session on this device';
+
+  @override
+  String get businessProfile => 'Business information';
+
+  @override
+  String get businessNameLabel => 'Business name';
+
+  @override
+  String get organizationNiuLabel => 'Tax ID (optional)';
+
+  @override
+  String get businessAddressLabel => 'Address (optional)';
+
+  @override
+  String get saveBusinessProfile => 'Save business information';
+
+  @override
+  String get taxSettings => 'VAT settings';
+
+  @override
+  String get taxEnabled => 'Apply VAT to sales';
+
+  @override
+  String get taxRateLabel => 'VAT rate (%)';
+
+  @override
+  String get taxRateOptional => 'Leave blank to disable VAT';
+
+  @override
+  String get saveTaxSettings => 'Save VAT settings';
+
+  @override
+  String get settingsSaved => 'Settings saved.';
+
+  @override
+  String settingsSaveFailed(String error) {
+    return 'Could not save settings: $error';
+  }
+
+  @override
+  String get settingsUnavailable => 'Business settings are unavailable.';
+
+  @override
+  String get settingsRetry => 'Retry';
+
+  @override
+  String get inventoryTitle => 'Inventory';
+
+  @override
+  String get inventoryComingSoon => 'Inventory management is coming soon.';
+
+  @override
+  String get reportsTitle => 'Reports';
+
+  @override
+  String get reportsComingSoon => 'Reports are coming soon.';
+
+  @override
+  String get posSubtitle => 'MboaPOS checkout';
+
+  @override
+  String get catalogSearch => 'Search products or barcodes';
+
+  @override
+  String get productsHeading => 'Products';
+
+  @override
+  String availableCount(int count) {
+    return '$count available';
+  }
+
+  @override
+  String stockCount(int count) {
+    return 'Stock $count';
+  }
+
+  @override
+  String get outOfStockShort => 'Sold out';
+
+  @override
+  String get addToCart => 'Add';
+
+  @override
+  String get cartTitle => 'Cart';
+
+  @override
+  String cartItemCount(int count) {
+    return '$count item(s)';
+  }
+
+  @override
+  String get emptyCartMessage => 'Your cart is empty.';
+
+  @override
+  String get totalLabel => 'Total';
+
+  @override
+  String get proceedToPayment => 'Proceed to payment';
+
+  @override
+  String get checkout => 'Checkout';
+
+  @override
+  String get noMatchingProducts => 'No products match your search.';
+
+  @override
+  String get catalogLoadFailed =>
+      'The catalog could not be refreshed. Cached products remain available offline.';
+
+  @override
+  String get paymentTitle => 'Checkout';
+
+  @override
+  String cartSummary(int count) {
+    return 'Items ($count)';
+  }
+
+  @override
+  String get subtotalLabel => 'Subtotal';
+
+  @override
+  String get adjustments => 'Adjustments';
+
+  @override
+  String get discountFCFA => 'Discount (FCFA)';
+
+  @override
+  String get deliveryFCFA => 'Delivery (FCFA)';
+
+  @override
+  String get taxIncluded => 'VAT included';
+
+  @override
+  String get taxDisabled => 'VAT disabled';
+
+  @override
+  String get paymentMethodTitle => 'Payment method';
+
+  @override
+  String get cashMethod => 'Cash';
+
+  @override
+  String get cashSubtitle => 'Cash payment';
+
+  @override
+  String get mtnMethod => 'MTN Mobile Money';
+
+  @override
+  String get orangeMethod => 'Orange Money';
+
+  @override
+  String get manualPaymentSubtitle => 'Seller confirms receipt';
+
+  @override
+  String get otherMethod => 'Other';
+
+  @override
+  String get otherPaymentSubtitle => 'Transfer, cheque, or another method';
+
+  @override
+  String get transactionReferenceLabel => 'Transaction reference';
+
+  @override
+  String get transactionReferenceHint =>
+      'Reference shown on the payment receipt';
+
+  @override
+  String get paymentReferenceRequired => 'Enter the payment reference.';
+
+  @override
+  String saleFailed(String error) {
+    return 'Sale failed: $error';
+  }
+
+  @override
+  String saleNeedsReview(String error) {
+    return 'Sale saved locally and needs review: $error';
+  }
+
+  @override
+  String get saleSavedOffline =>
+      'Sale saved offline. Sync will resume automatically.';
+
+  @override
+  String confirmSale(String amount) {
+    return 'Confirm — $amount';
+  }
+
+  @override
+  String get receiptProvisional => 'Provisional ticket — sync pending';
+
+  @override
+  String get receiptNeedsReview =>
+      'Sale needs review before server confirmation';
+
+  @override
+  String get receiptNotFiscal =>
+      'Non-fiscal document — tax details are not verified';
+
+  @override
+  String get receiptFiscalVerified => 'Fiscal profile verified';
+
+  @override
+  String get receiptLocalTime => 'Provisional local time';
+
+  @override
+  String get organizationNameMissing => 'Business';
+
+  @override
+  String get organizationAddressMissing => 'Address not provided';
+
+  @override
+  String get organizationNiuMissing => 'Not provided';
+
+  @override
+  String get taxFieldInvalid => 'Enter a rate between 0 and 100%.';
+
+  @override
+  String get businessNameRequired => 'Enter the business name.';
+
+  @override
+  String receiptTax(Object rate) {
+    return 'VAT ($rate%)';
+  }
+
+  @override
+  String get authInputRequired => 'Enter your sign-in details to continue.';
+
+  @override
+  String get authVerifyEmail => 'Verify your email address before signing in.';
+
+  @override
+  String get authBusinessUnlinked =>
+      'This account is not an active member of an MboaPOS business.';
+
+  @override
+  String get authOwnerRequired => 'Owner or administrator access is required.';
+
+  @override
+  String get authTooManyAttempts =>
+      'Too many attempts. Wait before trying again.';
+
+  @override
+  String get authAccountExists =>
+      'An account already exists for this email address.';
+
+  @override
+  String get authWeakPassword =>
+      'Choose a stronger password with at least 8 characters.';
+
+  @override
+  String get authInvalidEmail => 'Enter a valid email address.';
+
+  @override
+  String get businessSetupUnavailable =>
+      'Business setup is temporarily unavailable.';
+
+  @override
+  String get businessSetupInvalid =>
+      'The business information could not be validated.';
+
+  @override
+  String get businessSetupRetry =>
+      'Setup is incomplete. Check your connection and try again.';
+
+  @override
+  String get businessCreateFailed =>
+      'Could not create the business account. Try again.';
 }

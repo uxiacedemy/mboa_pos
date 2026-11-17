@@ -1,12 +1,18 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/design/design_tokens.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
+import 'entry_flow_screens.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.initialStaffMode = true});
+
+  final bool initialStaffMode;
+
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
@@ -21,6 +27,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   bool _submitting = false;
   String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _staffMode = widget.initialStaffMode;
+  }
 
   @override
   void dispose() {
@@ -31,7 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit(AppLocalizations l10n) async {
     if (_submitting || !(_formKey.currentState?.validate() ?? false)) return;
     setState(() {
       _submitting = true;
@@ -50,18 +61,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) context.go('/pos');
     } on AuthFailure catch (error) {
       if (mounted) {
-        setState(() => _error = error.message);
+        setState(
+          () => _error = error.localizedMessage(l10n),
+        );
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'Unexpected sign-in failure',
+        name: 'mboapos.auth',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
-        setState(() => _error = AppLocalizations.of(context)!.authGeneric);
+        setState(() => _error = l10n.authGeneric);
       }
+    } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
-  Future<void> _forgotPassword() async {
-    final l10n = AppLocalizations.of(context)!;
+  Future<void> _forgotPassword(AppLocalizations l10n) async {
     final controller = TextEditingController(text: _email.text);
     final value = await showDialog<String>(
       context: context,
@@ -92,13 +111,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } on AuthFailure catch (error) {
       if (mounted) {
-        setState(() => _error = error.message);
+        setState(
+          () => _error = error.localizedMessage(l10n),
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final wide = MediaQuery.sizeOf(context).width >= 960;
     final form = _AuthForm(
       formKey: _formKey,
@@ -115,28 +137,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _staffMode = value;
         _error = null;
       }),
-      onSubmit: _submit,
-      onForgot: _forgotPassword,
+      onSubmit: () => _submit(l10n),
+      onForgot: () => _forgotPassword(l10n),
       onCreateBusiness: () => context.go('/register'),
+      onReturnToEntry: () => context.go('/entry'),
     );
     return Scaffold(
       backgroundColor: AppColors.checkoutCanvas,
       body: SafeArea(
-          child: Center(
-              child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: wide ? 1180 : 520),
-        child: Padding(
-          padding: EdgeInsets.all(wide ? AppSpacing.xl : AppSpacing.md),
-          child: wide
-              ? Row(children: [
-                  const Expanded(child: _BrandPanel()),
-                  const SizedBox(width: AppSpacing.xl),
-                  Expanded(child: form)
-                ])
-              : SingleChildScrollView(
-                  child: Column(children: [const _CompactBrand(), form])),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: wide ? 1180 : 520),
+            child: Padding(
+              padding: EdgeInsets.all(wide ? AppSpacing.xl : AppSpacing.md),
+              child: wide
+                  ? Row(children: [
+                      const Expanded(child: _BrandPanel()),
+                      const SizedBox(width: AppSpacing.xl),
+                      Expanded(child: form)
+                    ])
+                  : SingleChildScrollView(
+                      child: Column(
+                        children: [const _CompactBrand(), form],
+                      ),
+                    ),
+            ),
+          ),
         ),
-      ))),
+      ),
     );
   }
 }
@@ -217,7 +245,11 @@ class _AuthForm extends StatelessWidget {
   final bool staffMode, obscure, submitting;
   final TextEditingController staffId, pin, email, password;
   final String? error;
-  final VoidCallback onToggleObscure, onSubmit, onForgot, onCreateBusiness;
+  final VoidCallback onToggleObscure,
+      onSubmit,
+      onForgot,
+      onCreateBusiness,
+      onReturnToEntry;
   final ValueChanged<bool> onModeChanged;
   const _AuthForm(
       {required this.formKey,
@@ -233,7 +265,8 @@ class _AuthForm extends StatelessWidget {
       required this.onModeChanged,
       required this.onSubmit,
       required this.onForgot,
-      required this.onCreateBusiness});
+      required this.onCreateBusiness,
+      required this.onReturnToEntry});
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -246,6 +279,8 @@ class _AuthForm extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const EntryLanguageSelector(),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(l10n.authWelcome,
                           style: AppTypography.headlineMedium
                               .copyWith(fontWeight: FontWeight.w700)),
@@ -318,6 +353,12 @@ class _AuthForm extends StatelessWidget {
                           onPressed: submitting ? null : onCreateBusiness,
                           icon: const Icon(Icons.add_business_outlined),
                           label: Text(l10n.createBusiness)),
+                      const SizedBox(height: AppSpacing.xs),
+                      TextButton.icon(
+                        onPressed: submitting ? null : onReturnToEntry,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: Text(l10n.backToEntry),
+                      ),
                       if (staffMode) ...[
                         const SizedBox(height: AppSpacing.sm),
                         Text(l10n.forgotPin,
@@ -358,7 +399,7 @@ class _AuthForm extends StatelessWidget {
                 counterText: ''),
             validator: (value) =>
                 value == null || value.length < 4 ? l10n.pin : null,
-            onFieldSubmitted: (_) => onSubmit)
+            onFieldSubmitted: (_) => onSubmit())
       ]);
   Widget _ownerFields(AppLocalizations l10n) =>
       Column(key: const ValueKey('owner'), children: [
@@ -389,6 +430,6 @@ class _AuthForm extends StatelessWidget {
             validator: (value) => value == null || value.length < 8
                 ? l10n.passwordRequirement
                 : null,
-            onFieldSubmitted: (_) => onSubmit)
+            onFieldSubmitted: (_) => onSubmit())
       ]);
 }

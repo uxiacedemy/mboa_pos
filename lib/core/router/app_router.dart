@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/domain/models/staff_user.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/auth/presentation/providers/entry_flow_provider.dart';
+import '../../features/auth/presentation/screens/entry_flow_screens.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/registration_screen.dart';
 import '../../features/inventory/presentation/screens/inventory_screen.dart';
@@ -12,22 +15,42 @@ import '../../features/shell/presentation/screens/main_shell.dart';
 import '../../features/storyboard/presentation/screens/storyboard_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final staffUser = ref.watch(authProvider).value;
-  final authStatus = ref.watch(authStatusProvider);
-  return GoRouter(
-    initialLocation: '/pos',
+  final refreshNotifier = _RouterRefreshNotifier();
+  ref.listen(authProvider, (_, __) => refreshNotifier.refresh());
+  ref.listen(firstRunWelcomeProvider, (_, __) => refreshNotifier.refresh());
+  final router = GoRouter(
+    initialLocation: '/startup',
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final staffUser = ref.read(authProvider).value;
+      final authStatus = ref.read(authStatusProvider);
+      final welcomeState = ref.read(firstRunWelcomeProvider);
       final path = state.uri.path;
       final protected = path == '/pos' ||
           path == '/inventory' ||
           path == '/reports' ||
           path == '/settings' ||
           path.startsWith('/sales');
-      if (authStatus == AuthStatus.unknown) {
-        return path == '/login' || path == '/register' ? null : '/login';
+      const entryRoutes = {
+        '/startup',
+        '/welcome',
+        '/entry',
+        '/login',
+        '/register',
+      };
+      if (authStatus == AuthStatus.unknown || welcomeState.isLoading) {
+        return path == '/startup' ? null : '/startup';
       }
-      if (protected && staffUser == null) return '/login';
-      if (path == '/login' && staffUser != null) return '/pos';
+      if (welcomeState.hasError) {
+        return path == '/startup' ? null : '/startup';
+      }
+      if (staffUser != null && entryRoutes.contains(path)) return '/pos';
+      if (staffUser == null) {
+        final welcomeCompleted = welcomeState.requireValue;
+        if (!welcomeCompleted && path != '/welcome') return '/welcome';
+        if (welcomeCompleted && path == '/welcome') return '/entry';
+        if (protected) return '/entry';
+      }
       if (path == '/reports' &&
           staffUser != null &&
           !{
@@ -57,10 +80,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/startup',
+        builder: (context, state) => const EntryStartupScreen(),
+      ),
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const EntryFlowLocalizations(
+          child: WelcomeScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/entry',
+        builder: (context, state) => const EntryFlowLocalizations(
+          child: EntryChoiceScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => EntryFlowLocalizations(
+          child: LoginScreen(
+            initialStaffMode: state.uri.queryParameters['mode'] != 'owner',
+          ),
+        ),
+      ),
       GoRoute(
           path: '/register',
-          builder: (context, state) => const RegistrationScreen()),
+          builder: (context, state) => const EntryFlowLocalizations(
+                child: RegistrationScreen(),
+              )),
       GoRoute(
           path: '/storyboard',
           builder: (context, state) => const StoryboardScreen()),
@@ -81,4 +129,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(() {
+    router.dispose();
+    refreshNotifier.dispose();
+  });
+  return router;
 });
+
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void refresh() => notifyListeners();
+}
