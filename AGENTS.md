@@ -40,21 +40,21 @@ This is the current Gate 1 baseline. Update this table whenever a feature is ver
 
 | Feature | Status | Blocked by | Last verified |
 |---|---|---|---|
-| Drift persistence | Missing | No local database layer | 2026-09-15 |
-| Firebase initialization | Partial (SDK initialization added; platform project options are not configured) | Firebase platform configuration | 2026-09-15 |
-| Firestore wiring | Partial (Product mapping, StockMovement model, stock exception, and checkout transaction added; project configuration and repository boundaries remain) | Firebase project configuration and repository boundaries | 2026-09-15 |
-| Authentication | Partial (PIN sign-in, StaffUser session, secure device ID, auth-only route redirect, and owner/admin staff-claim provisioning callable added; session restoration and platform configuration remain) | Firebase platform configuration and client session restoration | 2026-09-18 |
-| Stock deduction | Partial (guarded checkout transaction and movement write added) | Missing auth; no real staff identity to attach to actor/device fields | 2026-09-15 |
-| Receipt persistence | Missing | No receipt persistence layer | 2026-09-15 |
-| Receipt printing | Missing | No printer integration | 2026-09-15 |
-| Sync | Missing | No durable local queue or sync worker | 2026-09-15 |
-| Localization | Partial | Generated localization is not wired into `MaterialApp` and screens still contain hardcoded strings | 2026-09-15 |
-| Route guards | Partial (authentication-only redirect for POS/sales routes) | Session restoration; role checks are intentionally out of scope | 2026-09-16 |
-| Known minor issues | None; `flutter analyze` reports no issues | None | 2026-09-15 |
+| Drift persistence | Partial (tenant-scoped product/settings cache, transactional checkout/outbox, receipts, and movements; schema is version 1) | Migration, backup/recovery, physical offline validation | Current change set |
+| Firebase initialization | Partial (platform options and emulator wiring exist; deployment is unverified) | Intended-project deployment and credentials/configuration | Current change set |
+| Firestore wiring | Partial (catalog and guarded server checkout are wired; rules and Functions emulator tests pass) | Production deployment and repository boundary cleanup | Current change set |
+| Authentication | Partial (first-run welcome and account chooser, English/French auth flow, PIN/owner sign-in, claims, membership check, secure device ID, role-aware redirects, and bounded auth/storage startup waits with retry) | Production configuration and device-level credential/session validation | Current change set |
+| Stock deduction | Implemented locally and in server transaction; emulator tests cover guarded multi-item/concurrent checkout | Production deployment and Android offline runtime test | Current change set |
+| Receipt persistence | Implemented in Drift; server number/time replace provisional local values after acknowledgement | Merchant fiscal-profile verification and offline review workflow | Current change set |
+| Receipt printing | PDF sharing/print actions implemented | Physical printer validation; this is not fiscal certification | Current change set |
+| Sync | Durable outbox and sign-in retry implemented | Connectivity/background scheduler and `needsReview` resolution UI | Current change set |
+| Localization | Generated localization is wired across POS, checkout, receipt, settings, shell, inventory, reports, and the English/French auth entry flow | The app returns to French after sign-in; app-wide locale preference is not implemented | Current change set |
+| Route guards | Authentication and role checks exist in GoRouter; Firestore uses active-role and tenant checks | Production rules verification | Current change set |
+| Known minor issues | `flutter analyze`, Flutter tests, Functions lint/build, emulator tests, and Web/Android debug builds pass | Physical Android and production verification remain | Current change set |
 
-The current persistence target is deliberately limited to the minimum single-terminal Phase 3 flow: one product document, one guarded stock decrement, and one transaction record. Do not expand this work into Phase 4/5 infrastructure such as multi-branch synchronization, sharded counters, or Cloud Functions.
+The persistence target remains the minimum single-terminal Phase 3 flow: one cached product projection, one guarded server stock decrement, and one transaction record with a durable local outbox. Do not expand this work into Phase 4/5 infrastructure such as multi-branch synchronization, sharded counters, or live payment integrations.
 
-Phase 3 minimal auth = single-role PIN login only (`{staffId}@mboapos.internal` + PIN via Firebase Auth), populating real `actorId`/`deviceId`/`organizationId` in `payment_screen.dart`. Full `StaffRole` hierarchy (cashier/supervisor/manager/admin) and GoRouter role guards are explicitly Phase 3-later / Gate-1-adjacent, not part of this task.
+The app supports PIN login (`{staffId}@mboapos.internal` + PIN via Firebase Auth), owner email/password onboarding, `actorId`/`deviceId`/`organizationId` checkout metadata, and the `cashier < supervisor < manager < admin` role hierarchy. Live mobile-money collection remains out of scope.
 
 ## Non-negotiable domain rules
 
@@ -73,19 +73,23 @@ Completed transactions are immutable. A void or refund creates a new record. Use
 
 ### Inventory and receipts
 
-- Stock changes must be atomic and guarded against negative stock. Never perform an unguarded read-modify-write update. Use this exact Firestore transaction pattern, adapting only identifiers and domain types as required:
+- Server stock changes must be atomic and guarded against negative stock. Never perform an unguarded read-modify-write update. The authoritative checkout write belongs in `functions/src/index.ts` and follows this transaction shape:
 
-```dart
-await db.runTransaction((txn) async {
-	final snap = await txn.get(productRef);
-	final current = snap.data()!['stockQty'] as int;
-	if (current < saleQty) throw InsufficientStockException(...);
-	txn.update(productRef, {'stockQty': FieldValue.increment(-saleQty)});
-	txn.set(movementRef, movement.toFirestore());
+```ts
+await db.runTransaction(async (transaction) => {
+  const product = await transaction.get(productRef);
+  const current = product.data()?.stockQty;
+  if (typeof current !== "number" || current < saleQty) {
+    throw new HttpsError("failed-precondition", "Insufficient stock.");
+  }
+  transaction.update(productRef, {
+    stockQty: FieldValue.increment(-saleQty),
+  });
+  transaction.set(movementRef, movement);
 });
 ```
 
-When implementing checkout stock deduction, follow this instruction literally: **DELETE the current stock deduction logic in `lib/features/sales/presentation/screens/payment_screen.dart`, REPLACE with this exact transaction pattern.** Do not interpret this as a vague request to "make it atomic" and do not improvise an unguarded read-modify-write alternative.
+- The Flutter client does not write Firestore stock directly. Its offline stock projection, receipt, movement, and outbox command are updated together in a Drift transaction before network submission.
 - Log every stock change with actor, item, time, device, and movement type.
 - Receipt numbers are unique per terminal per day: `YYYYMMDD-{terminalId}-{sequence:05d}`. Never use one global counter.
 - Receipts must persist, show TVA separately, include the organization's NIU, and use `DD/MM/YYYY HH:mm` formatting. The current receipt model/check-out wiring must be audited before claiming fiscal compliance.
@@ -131,17 +135,17 @@ New terminal sessions default to `C:\Windows\system32` — always confirm `pwd`/
 
 ## Remaining Build Order
 
-- [ ] (1) Firestore rules emulator validation for Stage 2 changes — Deferred: verify manually via staging Firestore project before first real merchant; not blocking local development
-- [ ] (2) Minimal auth — staff PIN login, StaffUser session, route redirect — Partial: sign-in/session/device identity and authentication-only redirect added; session restoration remains
-- [x] (3) Provision `organizationId`/role via Cloud Function custom claims (Admin SDK) — `functions/src/index.ts`, callable in `europe-west1`
-- [ ] (4) Thread real organizationId/actorId/deviceId into payment_screen.dart
-- [x] (5) Idempotency key on checkout transaction — checkout UUID is reused for retries and transaction document existence is checked atomically
-- [ ] (6) Confirm-button loading/disabled state during async transaction
-- [ ] (7) Drift offline persistence — products, pending sales, receipts, sync queue
-- [ ] (8) Receipt construction and persistence — numbering, NIU, TVA, timestamps
-- [ ] (9) Receipt printing/sharing
-- [ ] (10) Test suite — money/tax rounding, insufficient stock, multi-item checkout, idempotency, auth session, receipt numbering, offline recovery, rules emulator
-- [ ] (11) Localization wiring in main.dart + remove hardcoded strings
-- [ ] (12) Android signing/app config for release
+- [x] (1) Firestore rules + checkout emulator integration — active-role, tenant, field-level settings, immutable transaction, idempotency, tax, concurrency, and stock cases pass locally; production rules still require verification.
+- [ ] (2) Authentication — PIN/owner sign-in, session membership, device identity, and role-aware redirects exist; production configuration, localized errors, and recovery remain.
+- [x] (3) Owner/staff claim provisioning callable — implemented in `functions/src/index.ts`; production deployment remains unverified.
+- [x] (4) Thread real organizationId/actorId/deviceId through local-first checkout.
+- [x] (5) Idempotency key and payload fingerprint are reused and checked atomically.
+- [x] (6) Confirm action has loading and disabled states during checkout.
+- [ ] (7) Drift cache, local transaction, receipts, movements, and durable outbox exist; migration/backup and connectivity-triggered sync remain.
+- [ ] (8) Server-authoritative receipt number/time and organization tax settings are wired; merchant fiscal profile and NIU remain unverified.
+- [ ] (9) PDF share/print actions exist; physical printer validation remains.
+- [ ] (10) Flutter and Functions tests plus emulator integration pass; auth recovery, comprehensive money rounding, and target-device offline tests remain.
+- [ ] (11) Generated localization is wired and checkout/POS/settings/receipt/navigation copy is localized; auth errors and locale-selection UX remain.
+- [ ] (12) Android debug APK builds; release signing/configuration and physical-device validation remain.
 
 Do not build Phase 4 or Phase 5 features, including AI, multi-branch scaling, subscription billing, embedded finance, or live mobile-money collection, unless the request explicitly unlocks that phase.

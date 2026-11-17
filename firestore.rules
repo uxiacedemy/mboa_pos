@@ -1,16 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ─── Helper Functions ───────────────────────────────────────────
-
     function signedIn() {
       return request.auth != null;
     }
 
-    function memberOf(orgId) {
+    function activeMember(orgId) {
       return signedIn()
-        && request.auth.token.organizationId == orgId;
+        && request.auth.token.active == true
+        && request.auth.token.role in ['owner', 'cashier', 'supervisor', 'manager', 'admin']
+        && request.auth.token.organizationId == orgId
+        && get(/databases/$(database)/documents/organizations/$(orgId)/staff/$(request.auth.uid)).data.organizationId == orgId
+        && get(/databases/$(database)/documents/organizations/$(orgId)/staff/$(request.auth.uid)).data.role == request.auth.token.role
+        && get(/databases/$(database)/documents/organizations/$(orgId)/staff/$(request.auth.uid)).data.active == true;
     }
 
     function roleAtLeast(role) {
@@ -26,84 +28,110 @@ service cloud.firestore {
       );
     }
 
-    // ─── Organizations ──────────────────────────────────────────────
+    function validProduct(data, orgId) {
+      return data.organizationId == orgId
+        && data.name is string
+        && data.priceXAF is int
+        && data.priceXAF >= 0
+        && data.stockQty is int
+        && data.stockQty >= 0;
+    }
 
     match /organizations/{orgId} {
-      allow read: if memberOf(orgId);
+      allow read: if activeMember(orgId);
       allow write: if false;
 
-      // ─── Products ────────────────────────────────────────────────
-
       match /products/{productId} {
-        allow read: if memberOf(orgId);
-        allow create: if memberOf(orgId)
-          && roleAtLeast('manager');
-        allow update: if memberOf(orgId)
-          && roleAtLeast('cashier')
+        allow read: if activeMember(orgId);
+        allow create: if activeMember(orgId)
+          && roleAtLeast('manager')
+          && request.resource.data.keys().hasOnly([
+            'id', 'organizationId', 'name', 'nameEn', 'priceXAF',
+            'category', 'stockQty', 'barcode', 'imageUrl', 'active'
+          ])
+          && validProduct(request.resource.data, orgId);
+        allow update: if activeMember(orgId)
+          && roleAtLeast('manager')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'nameEn', 'priceXAF', 'category', 'barcode',
+            'imageUrl', 'active'
+          ])
           && request.resource.data.organizationId == orgId
-          && request.resource.data.stockQty is int;
+          && request.resource.data.priceXAF is int
+          && request.resource.data.priceXAF >= 0;
         allow delete: if false;
       }
 
-      // ─── Transactions (immutable after creation) ─────────────────
-
-      match /transactions/{transactionId} {
-        allow read: if memberOf(orgId)
-          && roleAtLeast('cashier');
-        allow create: if memberOf(orgId)
-          && roleAtLeast('cashier')
-          && request.resource.data.organizationId == orgId
-          && request.resource.data.cashierId == request.auth.uid
-          && request.resource.data.totalFCFA is int
-          && request.resource.data.status == 'completed';
-        allow update, delete: if false;
+      match /settings/{settingsId} {
+        allow read: if activeMember(orgId);
+        allow create, delete: if false;
+        allow update: if activeMember(orgId) && (
+          (
+            roleAtLeast('cashier')
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'taxEnabled', 'taxRateBasisPoints', 'updatedAt'
+            ])
+            && request.resource.data.taxEnabled is bool
+            && (
+              request.resource.data.taxRateBasisPoints == null
+              || (
+                request.resource.data.taxRateBasisPoints is int
+                && request.resource.data.taxRateBasisPoints >= 0
+                && request.resource.data.taxRateBasisPoints <= 10000
+              )
+            )
+            && (
+              request.resource.data.taxEnabled == false
+              || request.resource.data.taxRateBasisPoints is int
+            )
+          )
+          || (
+            roleAtLeast('admin')
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'businessName', 'organizationNiu', 'address', 'updatedAt'
+            ])
+            && request.resource.data.businessName is string
+            && (
+              request.resource.data.organizationNiu == null
+              || request.resource.data.organizationNiu is string
+            )
+            && (
+              request.resource.data.address == null
+              || request.resource.data.address is string
+            )
+          )
+        );
       }
 
-      // ─── Staff ───────────────────────────────────────────────────
+      match /transactions/{transactionId} {
+        allow read: if activeMember(orgId) && roleAtLeast('cashier');
+        allow create, update, delete: if false;
+      }
 
       match /staff/{staffId} {
-        allow read: if memberOf(orgId)
-          && roleAtLeast('manager');
+        allow read: if activeMember(orgId) && roleAtLeast('manager');
         allow write: if false;
       }
 
-      // ─── Inventory Adjustments ───────────────────────────────────
-
       match /inventory_adjustments/{adjustmentId} {
-        allow read: if memberOf(orgId)
-          && roleAtLeast('manager');
-        allow create: if memberOf(orgId)
-          && roleAtLeast('cashier')
-          && request.resource.data.organizationId == orgId
-          && request.resource.data.actorId == request.auth.uid;
-        allow update, delete: if false;
+        allow read: if activeMember(orgId) && roleAtLeast('manager');
+        allow create, update, delete: if false;
       }
-
-      // ─── Daily Reports ───────────────────────────────────────────
 
       match /daily_reports/{reportDate} {
-        allow read: if memberOf(orgId)
-          && roleAtLeast('cashier');
-        allow create, update: if memberOf(orgId)
-          && roleAtLeast('manager');
+        allow read: if activeMember(orgId) && roleAtLeast('cashier');
+        allow create, update: if activeMember(orgId) && roleAtLeast('manager');
         allow delete: if false;
       }
-
-      // ─── Catch-all deny inside org ───────────────────────────────
 
       match /{document=**} {
         allow read, write: if false;
       }
     }
 
-    // ─── Sync Queue (offline transactions) ──────────────────────────
-
     match /sync_queue/{deviceId}/pending/{localId} {
-      allow read, write: if signedIn()
-        && request.auth.token.deviceId == deviceId;
+      allow read, write: if false;
     }
-
-    // ─── Global catch-all deny ───────────────────────────────────────
 
     match /{document=**} {
       allow read, write: if false;

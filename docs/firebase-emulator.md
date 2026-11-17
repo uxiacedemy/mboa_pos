@@ -31,6 +31,21 @@ Open `http://127.0.0.1:4000` for the Emulator UI.
 The script builds `functions/` before starting the emulators so the callable
 Functions source is current.
 
+## Run the integration gate
+
+From the repository root, with the Firebase CLI and Functions dependencies
+installed:
+
+```powershell
+firebase emulators:exec --project mboapos --only auth,firestore,functions "node functions/test/emulator.integration.js"
+```
+
+The integration test provisions test identities and a test organization in
+the emulators, then checks checkout idempotency/concurrency, stock and tax
+validation, active-role and tenant enforcement, settings field permissions,
+receipt metadata, and completed-transaction immutability. It does not contact
+or verify production Firebase.
+
 ## Run the Flutter app against emulators
 
 Debug builds automatically connect Auth, Firestore, and the

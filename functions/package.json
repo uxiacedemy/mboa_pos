@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc",
     "lint": "eslint --ext .ts src",
+    "test:integrity": "npm run build && node test/integrity.test.js",
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions"
   },

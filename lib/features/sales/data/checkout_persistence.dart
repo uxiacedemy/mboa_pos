@@ -1,18 +1,27 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
-
+import '../../../core/storage/local_database.dart';
 import '../domain/models/receipt.dart';
 
 class PendingCheckout {
   final String idempotencyKey;
   final Map<String, dynamic> payload;
   final DateTime queuedAt;
+  final int schemaVersion;
+  final String? organizationId;
+  final String? actorId;
+  final String? deviceId;
+  final String? requestFingerprint;
 
   const PendingCheckout({
     required this.idempotencyKey,
     required this.payload,
     required this.queuedAt,
+    this.schemaVersion = 1,
+    this.organizationId,
+    this.actorId,
+    this.deviceId,
+    this.requestFingerprint,
   });
 
   factory PendingCheckout.fromJson(Map<String, dynamic> json) {
@@ -20,6 +29,17 @@ class PendingCheckout {
       idempotencyKey: json['idempotencyKey'] as String,
       payload: Map<String, dynamic>.from(json['payload'] as Map),
       queuedAt: DateTime.parse(json['queuedAt'] as String),
+      schemaVersion: json['schemaVersion'] as int? ??
+          (json['payload'] as Map)['schemaVersion'] as int? ??
+          0,
+      organizationId: json['organizationId'] as String? ??
+          (json['payload'] as Map)['organizationId'] as String?,
+      actorId: json['actorId'] as String? ??
+          (json['payload'] as Map)['actorId'] as String?,
+      deviceId: json['deviceId'] as String? ??
+          (json['payload'] as Map)['deviceId'] as String?,
+      requestFingerprint: json['requestFingerprint'] as String? ??
+          (json['payload'] as Map)['requestFingerprint'] as String?,
     );
   }
 
@@ -27,99 +47,127 @@ class PendingCheckout {
         'idempotencyKey': idempotencyKey,
         'payload': payload,
         'queuedAt': queuedAt.toIso8601String(),
+        'schemaVersion': schemaVersion,
+        'organizationId': organizationId ?? payload['organizationId'],
+        'actorId': actorId ?? payload['actorId'],
+        'deviceId': deviceId ?? payload['deviceId'],
+        'requestFingerprint':
+            requestFingerprint ?? payload['requestFingerprint'],
       };
 }
 
 class LocalCheckoutStore {
-  static const _pendingKey = 'mboapos.pending_checkouts.v1';
-  static const _receiptsKey = 'mboapos.receipts.v1';
-  static const _movementsKey = 'mboapos.stock_movements.v1';
+  final LocalDatabase database;
 
-  Future<SharedPreferences> get _preferences => SharedPreferences.getInstance();
+  LocalCheckoutStore({LocalDatabase? database})
+      : database = database ?? localDatabase;
 
-  Future<List<PendingCheckout>> pendingCheckouts() async {
-    final values = (await _preferences).getStringList(_pendingKey) ?? const [];
-    return values
-        .map((value) => PendingCheckout.fromJson(
-            Map<String, dynamic>.from(jsonDecode(value) as Map)))
-        .toList(growable: false);
+  Future<List<PendingCheckout>> pendingCheckouts({
+    String? organizationId,
+    String? actorId,
+    String? deviceId,
+  }) async {
+    final rows = await database.pendingCheckouts(
+      organizationId: organizationId,
+      actorId: actorId,
+      deviceId: deviceId,
+    );
+    return rows.map((row) {
+      final decodedPayload = jsonDecode(row.payloadJson);
+      if (decodedPayload is! Map) {
+        throw StateError('A pending checkout has an invalid payload.');
+      }
+      final payload = Map<String, dynamic>.from(decodedPayload);
+      return PendingCheckout(
+        idempotencyKey: row.checkoutId,
+        payload: payload,
+        queuedAt: DateTime.fromMillisecondsSinceEpoch(row.queuedAtMillis),
+        schemaVersion: payload['schemaVersion'] as int? ?? 0,
+        organizationId: row.organizationId,
+        actorId: row.actorId,
+        deviceId: row.deviceId,
+        requestFingerprint: row.requestFingerprint,
+      );
+    }).toList(growable: false);
   }
 
   Future<void> enqueue(PendingCheckout checkout) async {
-    final preferences = await _preferences;
-    final current = await pendingCheckouts();
-    if (current.any((item) => item.idempotencyKey == checkout.idempotencyKey)) {
-      return;
+    if (checkout.schemaVersion < 1 ||
+        checkout.organizationId == null ||
+        checkout.actorId == null ||
+        checkout.deviceId == null ||
+        checkout.requestFingerprint == null) {
+      throw ArgumentError('Pending checkout identity metadata is required.');
     }
-    await preferences.setStringList(
-      _pendingKey,
-      [
-        ...current,
-        checkout,
-      ].map((item) => jsonEncode(item.toJson())).toList(),
+    await database.enqueuePendingCheckout(
+      checkoutId: checkout.idempotencyKey,
+      organizationId: checkout.organizationId!,
+      actorId: checkout.actorId!,
+      deviceId: checkout.deviceId!,
+      requestFingerprint: checkout.requestFingerprint!,
+      payload: checkout.payload,
+      queuedAtMillis: checkout.queuedAt.millisecondsSinceEpoch,
     );
   }
 
-  Future<void> removePending(String idempotencyKey) async {
-    final preferences = await _preferences;
-    final remaining = (await pendingCheckouts())
-        .where((item) => item.idempotencyKey != idempotencyKey)
-        .map((item) => jsonEncode(item.toJson()))
-        .toList();
-    await preferences.setStringList(_pendingKey, remaining);
-  }
+  Future<void> removePending(String idempotencyKey) =>
+      database.removePendingCheckout(idempotencyKey);
 
-  Future<void> saveReceipt(ReceiptData receipt) async {
-    final preferences = await _preferences;
-    final receipts = await storedReceipts();
-    final updated = [
-      for (final item in receipts)
-        if (item.receiptNumber != receipt.receiptNumber) item,
-      receipt,
-    ];
-    await preferences.setStringList(
-      _receiptsKey,
-      updated.map((item) => jsonEncode(item.toJson())).toList(),
-    );
-  }
+  Future<void> saveReceipt(
+    ReceiptData receipt, {
+    String? checkoutId,
+  }) =>
+      database.saveReceipt(
+        receipt.toJson(),
+        checkoutId: checkoutId,
+        organizationId: receipt.organizationId,
+      );
 
   Future<List<ReceiptData>> storedReceipts() async {
-    final values = (await _preferences).getStringList(_receiptsKey) ?? const [];
-    return values
-        .map((value) => ReceiptData.fromJson(
-            Map<String, dynamic>.from(jsonDecode(value) as Map)))
-        .toList(growable: false);
+    final receipts = await database.storedReceipts();
+    return receipts.map(ReceiptData.fromJson).toList(growable: false);
   }
 
-  Future<void> saveStockMovements(List<Map<String, dynamic>> movements) async {
-    if (movements.isEmpty) return;
-    final preferences = await _preferences;
-    final current =
-        (await _preferences).getStringList(_movementsKey) ?? const [];
-    final known = current
-        .map((value) => Map<String, dynamic>.from(jsonDecode(value) as Map))
-        .toList();
-    for (final movement in movements) {
-      final index = known.indexWhere((item) => item['id'] == movement['id']);
-      if (index < 0) {
-        known.add(movement);
-      } else {
-        known[index] = movement;
-      }
-    }
-    await preferences.setStringList(
-      _movementsKey,
-      known.map(jsonEncode).toList(),
-    );
-  }
+  Future<void> saveStockMovements(List<Map<String, dynamic>> movements) =>
+      database.saveStockMovements(movements);
 
-  Future<List<Map<String, dynamic>>> stockMovements() async {
-    final values =
-        (await _preferences).getStringList(_movementsKey) ?? const [];
-    return values
-        .map((value) => Map<String, dynamic>.from(jsonDecode(value) as Map))
-        .toList(growable: false);
-  }
+  Future<List<Map<String, dynamic>>> stockMovements() =>
+      database.stockMovements();
+
+  Future<void> recordOfflineCheckout({
+    required PendingCheckout checkout,
+    required ReceiptData receipt,
+    required List<({String productId, int quantity})> lines,
+    required List<Map<String, dynamic>> movements,
+  }) =>
+      database.recordPendingCheckout(
+        checkoutId: checkout.idempotencyKey,
+        organizationId: checkout.organizationId!,
+        actorId: checkout.actorId!,
+        deviceId: checkout.deviceId!,
+        requestFingerprint: checkout.requestFingerprint!,
+        payload: checkout.payload,
+        receipt: receipt.toJson(),
+        lines: lines,
+        movements: movements,
+        queuedAtMillis: checkout.queuedAt.millisecondsSinceEpoch,
+      );
+
+  Future<void> completeCheckout({
+    required String idempotencyKey,
+    required String organizationId,
+    required ReceiptData receipt,
+    required List<Map<String, dynamic>> movements,
+  }) =>
+      database.completeCheckout(
+        checkoutId: idempotencyKey,
+        organizationId: organizationId,
+        receipt: receipt.toJson(),
+        movements: movements,
+      );
+
+  Future<void> markNeedsReview(String idempotencyKey, Object error) =>
+      database.setCheckoutNeedsReview(idempotencyKey, error.toString());
 }
 
 final localCheckoutStore = LocalCheckoutStore();

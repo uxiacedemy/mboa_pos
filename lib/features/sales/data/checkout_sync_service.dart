@@ -9,8 +9,16 @@ class CheckoutSyncService {
   CheckoutSyncService({LocalCheckoutStore? store})
       : store = store ?? localCheckoutStore;
 
-  Future<int> syncPending({required String organizationId}) async {
-    final pending = await store.pendingCheckouts();
+  Future<int> syncPending({
+    required String organizationId,
+    required String actorId,
+    required String deviceId,
+  }) async {
+    final pending = await store.pendingCheckouts(
+      organizationId: organizationId,
+      actorId: actorId,
+      deviceId: deviceId,
+    );
     if (pending.isEmpty) return 0;
 
     final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
@@ -18,6 +26,11 @@ class CheckoutSyncService {
     var completed = 0;
     for (final checkout in pending) {
       try {
+        if (checkout.organizationId != organizationId ||
+            checkout.actorId != actorId ||
+            checkout.deviceId != deviceId) {
+          continue;
+        }
         final response = await callable.call<Map<String, dynamic>>(
           checkout.payload,
         );
@@ -25,16 +38,23 @@ class CheckoutSyncService {
           checkout.payload,
           response.data,
         );
-        await store.saveReceipt(receipt);
-        await store.saveStockMovements(
-          _movementsFromPayload(checkout.payload, synced: true),
+        await store.completeCheckout(
+          idempotencyKey: checkout.idempotencyKey,
+          organizationId: organizationId,
+          receipt: receipt,
+          movements: _movementsFromPayload(
+            checkout.payload,
+            synced: true,
+            occurredAt: receipt.issuedAt.toIso8601String(),
+          ),
         );
-        await store.removePending(checkout.idempotencyKey);
         completed++;
       } on FirebaseFunctionsException catch (error) {
         if (_isRetryable(error.code)) break;
+        await store.markNeedsReview(checkout.idempotencyKey, error);
         break;
-      } catch (_) {
+      } on Object catch (error) {
+        await store.markNeedsReview(checkout.idempotencyKey, error);
         break;
       }
     }
@@ -58,30 +78,103 @@ class CheckoutSyncService {
     final local = ReceiptData.fromJson(
       Map<String, dynamic>.from(payload['localReceipt'] as Map),
     );
+    final issuedAtValue = response['issuedAt'];
+    final receiptNumber = response['receiptNumber'];
+    final organizationId = response['organizationId'];
+    final organizationName = response['organizationName'];
+    final organizationNiu = response['organizationNiu'];
+    final organizationAddress = response['organizationAddress'];
+    final cashierId = response['cashierId'];
+    final paymentMethod = response['paymentMethod'];
+    final paymentReference = response['paymentReference'];
+    final taxRate = response['taxRateBasisPoints'];
+    final isFiscal = response['isFiscal'];
+    if (issuedAtValue is! String ||
+        receiptNumber is! String ||
+        organizationId is! String ||
+        organizationId != local.organizationId ||
+        organizationName is! String ||
+        organizationNiu is! String ||
+        organizationAddress is! String ||
+        cashierId != local.cashierName ||
+        paymentMethod != payload['paymentMethod'] ||
+        (paymentReference != null && paymentReference is! String) ||
+        taxRate is! int ||
+        taxRate < 0 ||
+        taxRate > 10000 ||
+        isFiscal is! bool) {
+      throw StateError('The server did not return authoritative receipt data.');
+    }
+    final issuedAt = DateTime.tryParse(issuedAtValue);
+    if (issuedAt == null || receiptNumber.isEmpty) {
+      throw StateError('The server returned invalid receipt data.');
+    }
+    final lines = _receiptLines(response['lines']);
+    if (lines.isEmpty) {
+      throw StateError('The server returned no receipt lines.');
+    }
     return ReceiptData(
-      receiptNumber:
-          response['receiptNumber'] as String? ?? local.receiptNumber,
-      issuedAt: DateTime.tryParse(response['issuedAt'] as String? ?? '') ??
-          local.issuedAt,
-      organizationName: local.organizationName,
-      organizationNiu: local.organizationNiu,
-      organizationAddress: local.organizationAddress,
+      receiptNumber: receiptNumber,
+      issuedAt: issuedAt,
+      organizationId: organizationId,
+      organizationName: organizationName,
+      organizationNiu: organizationNiu,
+      organizationAddress: organizationAddress,
       cashierName: local.cashierName,
-      items: local.items,
-      subtotalFCFA: local.subtotalFCFA,
-      discountFCFA: local.discountFCFA,
-      deliveryFCFA: local.deliveryFCFA,
-      taxFCFA: local.taxFCFA,
-      taxRate: local.taxRate,
-      totalFCFA: local.totalFCFA,
+      items: lines,
+      subtotalFCFA: _requiredAmount(response, 'subtotalFCFA'),
+      discountFCFA: _requiredAmount(response, 'discountFCFA'),
+      deliveryFCFA: _requiredAmount(response, 'deliveryFCFA'),
+      taxFCFA: _requiredAmount(response, 'taxFCFA'),
+      taxRate: taxRate / 10000,
+      totalFCFA: _requiredAmount(response, 'totalFCFA'),
       paymentMethod: local.paymentMethod,
-      paymentReference: local.paymentReference,
+      paymentReference: paymentReference as String?,
+      isFiscal: isFiscal,
+      isProvisional: false,
+      issuedAtIsServer: true,
+      syncStatus: 'synced',
     );
+  }
+
+  static int _requiredAmount(Map<String, dynamic> response, String field) {
+    final value = response[field];
+    if (value is! int || value < 0) {
+      throw StateError('The server returned an invalid $field.');
+    }
+    return value;
+  }
+
+  static List<ReceiptLine> _receiptLines(Object? raw) {
+    if (raw is! List || raw.isEmpty) {
+      throw StateError('The server returned invalid receipt lines.');
+    }
+    return [
+      for (final item in raw)
+        if (item is Map &&
+            item['name'] is String &&
+            (item['name'] as String).isNotEmpty &&
+            item['quantity'] is int &&
+            (item['quantity'] as int) > 0 &&
+            item['unitPriceFCFA'] is int &&
+            (item['unitPriceFCFA'] as int) >= 0 &&
+            item['subtotalFCFA'] is int &&
+            (item['subtotalFCFA'] as int) >= 0)
+          ReceiptLine(
+            name: item['name'] as String,
+            quantity: item['quantity'] as int,
+            unitPriceFCFA: item['unitPriceFCFA'] as int,
+            subtotalFCFA: item['subtotalFCFA'] as int,
+          )
+        else
+          throw StateError('The server returned invalid receipt lines.'),
+    ];
   }
 
   static List<Map<String, dynamic>> _movementsFromPayload(
     Map<String, dynamic> payload, {
     required bool synced,
+    String? occurredAt,
   }) {
     final lines = (payload['lines'] as List).cast<Map>();
     return [
@@ -94,9 +187,9 @@ class CheckoutSyncService {
           'type': 'saleDeduction',
           'actorId': payload['actorId'],
           'deviceId': payload['deviceId'],
-          'occurredAt': payload['localReceipt'] is Map
+          'occurredAt': occurredAt ?? (payload['localReceipt'] is Map
               ? (payload['localReceipt'] as Map)['issuedAt']
-              : DateTime.now().toIso8601String(),
+              : null),
           'syncStatus': synced ? 'synced' : 'pending',
         },
     ];

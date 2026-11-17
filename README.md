@@ -1,42 +1,57 @@
 # MboaPOS
 
-Offline-first point of sale and inventory management for Cameroonian SMEs.
+MboaPOS is an offline-first point-of-sale and inventory recording app for
+Cameroonian small and medium businesses. It records payment methods; it is not
+a payment processor or e-commerce platform.
 
-## Current pilot scope
+## Current implementation
 
-The web pilot supports a local product catalog, XAF integer totals, Cameroon TVA calculation at 19.25%, offline cash checkout, a persisted pending-sale record, and a receipt reference. It is not yet connected to Firebase and must not be used for production fiscal or mobile-money processing.
+- Flutter app with French-first generated localization, Riverpod state, and
+  GoRouter navigation.
+- Firebase Auth sessions, organization claims, Firestore-backed catalog, and
+  `europe-west1` checkout/owner-provisioning callables.
+- Drift local cache for products and organization settings, with transactional
+  local checkout, receipt, stock projection, and durable outbox records.
+- Server checkout validates current prices, tax settings, totals, and stock;
+  receipt number and issue time come from the server. Provisional offline
+  receipts are clearly marked and never treated as fiscal.
+- Firestore rules deny direct client writes to transactions and stock
+  movements, require active staff claims, and restrict updates by field and
+  role.
 
-## Run locally
+The implementation is still a pilot. Firebase production deployment, verified
+merchant tax/NIU details, review handling for permanently rejected offline
+sales, and physical-device validation remain release gates. Tax is disabled
+for new organizations by default; the owner can enable it and edit the rate.
+Payment methods (Cash, MTN MoMo, Orange Money, Other) are recording labels
+only; no live payment collection is implemented.
 
-```text
-flutter pub get
-flutter run -d chrome
-flutter test
-flutter analyze
+## Local development
+
+```powershell
+cmd.exe /d /c "C:\Users\EVERMATE\flutter\bin\flutter.bat pub get"
+cmd.exe /d /c "C:\Users\EVERMATE\flutter\bin\flutter.bat analyze"
+cmd.exe /d /c "C:\Users\EVERMATE\flutter\bin\flutter.bat test"
+cmd.exe /d /c "C:\Users\EVERMATE\flutter\bin\flutter.bat build apk --debug"
 ```
 
-The current browser adapter uses local storage for non-sensitive pilot data. Before production, replace it with the planned Drift web database and add Firebase Authentication, Firestore sync, Cloud Functions, and emulator-tested rules.
+See [Firebase Emulator Suite](docs/firebase-emulator.md) for running Auth,
+Firestore, and Functions locally, and [SECURITY.md](SECURITY.md) for the
+security baseline.
 
-## Compliance blockers before launch
+## Before a merchant pilot
 
-- Replace placeholder operator details and email in [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md).
-- Confirm receipt and NIU requirements with a Cameroonian accountant.
-- Configure Firebase Authentication, tenant claims, rules, backups, and Cloud Functions in `europe-west1`.
-- Implement verified MTN Mobile Money and Orange Money callbacks in Cloud Functions; never put credentials in Flutter.
-- Complete security review, data-retention policy, incident process, and merchant data-processing terms.
+- Deploy and verify Firebase callables and rules in the intended Firebase
+  project; local emulator success does not prove production deployment.
+- Configure and verify the merchant's NIU and tax profile with the appropriate
+  accounting authority. Receipts remain non-fiscal until then.
+- Exercise the app on the supported compact Android device and verify offline
+  restart/recovery behavior.
+- Establish backup, retention, incident-response, and merchant data-processing
+  procedures. Replace placeholder operator details in [PRIVACY.md](PRIVACY.md)
+  and [TERMS.md](TERMS.md).
 
-See [SECURITY.md](SECURITY.md) for the minimum security baseline.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Receipt printing and sharing do not establish fiscal compliance. See the
+[mobile architecture](docs/mobile-architecture-and-data-lifecycle.md),
+[user flows](docs/mobile-user-flows.md), and [risk log](docs/p0-risk-log.md)
+for verified behavior and remaining gaps.

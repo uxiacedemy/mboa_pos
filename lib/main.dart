@@ -78,6 +78,9 @@ class MboaPOSApp extends ConsumerWidget {
             title: 'MboaPOS',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light(),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('fr'),
             home: FirebaseStartupErrorScreen(
               error: snapshot.error ?? snapshot.data as Object,
             ),
@@ -89,6 +92,9 @@ class MboaPOSApp extends ConsumerWidget {
             title: 'MboaPOS',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light(),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('fr'),
             home: const Scaffold(
               body: Center(
                 child: CircularProgressIndicator(),
@@ -125,6 +131,7 @@ class FirebaseStartupErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       body: Center(
         child: Padding(
@@ -139,13 +146,13 @@ class FirebaseStartupErrorScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Firebase n\'est pas configure',
+                l10n.firebaseSetupTitle,
                 style: AppTypography.titleLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Ajoutez la configuration Firebase de cette plateforme, puis relancez l\'application.',
+                l10n.firebaseSetupBody,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.md),

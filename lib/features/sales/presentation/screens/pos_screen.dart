@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/design/design_tokens.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../domain/models/cart_item.dart';
 import '../../domain/models/product.dart';
 import '../providers/cart_provider.dart';
@@ -17,9 +19,10 @@ class PosScreen extends ConsumerStatefulWidget {
 class _PosScreenState extends ConsumerState<PosScreen> {
   final _search = TextEditingController();
   String _query = '';
-  String _category = 'Tous';
+  String _category = '';
 
-  static String _money(int value) => ' FCFA';
+  static String _money(int value) =>
+      '${NumberFormat('#,##0', 'fr_CM').format(value)} FCFA';
 
   @override
   void dispose() {
@@ -30,8 +33,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   List<Product> _filter(List<Product> products) {
     final query = _query.trim().toLowerCase();
     return products.where((product) {
-      final categoryMatch =
-          _category == 'Tous' || product.category == _category;
+      final categoryMatch = _category.isEmpty || product.category == _category;
       final queryMatch = query.isEmpty ||
           product.name.toLowerCase().contains(query) ||
           product.nameEn.toLowerCase().contains(query) ||
@@ -49,12 +51,14 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final products = ref.watch(productsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    final catalogAsync = ref.watch(catalogProvider);
+    final products = catalogAsync.value?.products ?? const <Product>[];
     final cart = ref.watch(cartProvider);
     final total = ref.watch(cartTotalProvider);
     final count = ref.watch(cartItemCountProvider);
     final categories = <String>{
-      'Tous',
+      l10n.allCategories,
       ...products.map((product) => product.category),
     }.toList();
     final filtered = _filter(products);
@@ -66,12 +70,12 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         backgroundColor: AppColors.checkoutCanvas,
         foregroundColor: AppColors.checkoutInk,
         surfaceTintColor: Colors.transparent,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Nouvelle vente', style: AppTypography.titleLarge),
+            Text(l10n.posTitle, style: AppTypography.titleLarge),
             Text(
-              'Caisse MboaPOS',
+              l10n.posSubtitle,
               style: TextStyle(
                 color: AppColors.checkoutMuted,
                 fontSize: 11,
@@ -100,7 +104,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                     ),
                     child: SearchBar(
                       controller: _search,
-                      hintText: 'Rechercher un produit ou un code-barres',
+                      hintText: l10n.catalogSearch,
                       leading: const Icon(Icons.search_rounded),
                       trailing: [
                         if (_query.isNotEmpty)
@@ -131,12 +135,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                           const SizedBox(width: AppSpacing.xs),
                       itemBuilder: (context, index) {
                         final category = categories[index];
-                        final selected = category == _category;
+                        final selected = _category.isEmpty
+                            ? index == 0
+                            : category == _category;
                         return ChoiceChip(
                           label: Text(category),
                           selected: selected,
-                          onSelected: (_) =>
-                              setState(() => _category = category),
+                          onSelected: (_) => setState(
+                            () => _category = index == 0 ? '' : category,
+                          ),
                           showCheckmark: false,
                           selectedColor: AppColors.checkoutOlive,
                           backgroundColor: AppColors.checkoutSurface,
@@ -159,8 +166,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Text(
-                          'Produits',
+                        Text(
+                          l10n.productsHeading,
                           style: TextStyle(
                             color: AppColors.checkoutInk,
                             fontSize: 17,
@@ -169,7 +176,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                         ),
                         const Spacer(),
                         Text(
-                          '${filtered.length} disponibles',
+                          l10n.availableCount(filtered.length),
                           style: const TextStyle(
                             color: AppColors.checkoutMuted,
                             fontSize: 12,
@@ -178,58 +185,112 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                       ],
                     ),
                   ),
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'Aucun produit ne correspond ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  votre recherche.',
-                              style: TextStyle(
-                                color: AppColors.checkoutMuted,
-                              ),
-                            ),
-                          )
-                        : GridView.builder(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.md,
-                              0,
-                              AppSpacing.md,
-                              AppSpacing.md,
-                            ),
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount:
-                                  MediaQuery.sizeOf(context).width >= 1200
-                                      ? 4
-                                      : 2,
-                              crossAxisSpacing: AppSpacing.sm,
-                              mainAxisSpacing: AppSpacing.sm,
-                              childAspectRatio: wide ? 1.05 : 0.82,
-                            ),
-                            itemCount: filtered.length,
-                            itemBuilder: (context, index) {
-                              final product = filtered[index];
-                              final quantity = cart
-                                  .where(
-                                      (item) => item.product.id == product.id)
-                                  .fold(0, (sum, item) => sum + item.quantity);
-                              return _ProductCard(
-                                product: product,
-                                quantity: quantity,
-                                money: _money,
-                                onAdd: () => ref
-                                    .read(cartProvider.notifier)
-                                    .addProduct(product),
-                                onRemove: quantity == 0
-                                    ? null
-                                    : () => ref
-                                        .read(cartProvider.notifier)
-                                        .updateQuantity(
-                                          product.id,
-                                          quantity - 1,
-                                        ),
-                              );
-                            },
+                  if (catalogAsync.value?.syncError != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                      ),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
                           ),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(l10n.catalogLoadFailed)),
+                              TextButton(
+                                onPressed: () => ref
+                                    .read(catalogProvider.notifier)
+                                    .refresh(),
+                                child: Text(l10n.settingsRetry),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: catalogAsync.isLoading && products.isEmpty
+                        ? const Center(child: CircularProgressIndicator())
+                        : catalogAsync.hasError && products.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        l10n.catalogLoadFailed,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      OutlinedButton(
+                                        onPressed: () => ref
+                                            .read(catalogProvider.notifier)
+                                            .refresh(),
+                                        child: Text(l10n.settingsRetry),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : filtered.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      _query.isEmpty
+                                          ? l10n.noProducts
+                                          : l10n.noMatchingProducts,
+                                      style: const TextStyle(
+                                        color: AppColors.checkoutMuted,
+                                      ),
+                                    ),
+                                  )
+                                : GridView.builder(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      AppSpacing.md,
+                                      0,
+                                      AppSpacing.md,
+                                      AppSpacing.md,
+                                    ),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount:
+                                          MediaQuery.sizeOf(context).width >=
+                                                  1200
+                                              ? 4
+                                              : 2,
+                                      crossAxisSpacing: AppSpacing.sm,
+                                      mainAxisSpacing: AppSpacing.sm,
+                                      childAspectRatio: wide ? 1.05 : 0.82,
+                                    ),
+                                    itemCount: filtered.length,
+                                    itemBuilder: (context, index) {
+                                      final product = filtered[index];
+                                      final quantity = cart
+                                          .where((item) =>
+                                              item.product.id == product.id)
+                                          .fold(
+                                              0,
+                                              (sum, item) =>
+                                                  sum + item.quantity);
+                                      return _ProductCard(
+                                        product: product,
+                                        quantity: quantity,
+                                        money: _money,
+                                        onAdd: () => ref
+                                            .read(cartProvider.notifier)
+                                            .addProduct(product),
+                                        onRemove: quantity == 0
+                                            ? null
+                                            : () => ref
+                                                .read(cartProvider.notifier)
+                                                .updateQuantity(
+                                                  product.id,
+                                                  quantity - 1,
+                                                ),
+                                      );
+                                    },
+                                  ),
                   ),
                 ],
               ),
@@ -280,6 +341,7 @@ class _ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final out = product.stockQty <= 0;
     return Card(
       margin: EdgeInsets.zero,
@@ -352,7 +414,7 @@ class _ProductCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Stock ${product.stockQty}',
+                  l10n.stockCount(product.stockQty),
                   style: TextStyle(
                     color: product.stockQty <= 5
                         ? Theme.of(context).colorScheme.error
@@ -385,7 +447,7 @@ class _ProductCard extends StatelessWidget {
                         borderRadius: AppRadius.checkoutButton,
                       ),
                     ),
-                    child: Text(out ? 'Rupture' : 'Ajouter'),
+                    child: Text(out ? l10n.outOfStockShort : l10n.addToCart),
                   ),
                 ),
               ],
@@ -416,6 +478,7 @@ class _CartPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: const BoxDecoration(
@@ -425,8 +488,8 @@ class _CartPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Panier',
+          Text(
+            l10n.cartTitle,
             style: TextStyle(
               color: AppColors.checkoutInk,
               fontSize: 20,
@@ -434,15 +497,15 @@ class _CartPanel extends StatelessWidget {
             ),
           ),
           Text(
-            ' articles - ',
+            l10n.cartItemCount(count),
             style: const TextStyle(color: AppColors.checkoutMuted),
           ),
           const SizedBox(height: AppSpacing.md),
           Expanded(
             child: cart.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'Votre panier est vide.',
+                      l10n.emptyCartMessage,
                       style: TextStyle(color: AppColors.checkoutMuted),
                     ),
                   )
@@ -467,8 +530,8 @@ class _CartPanel extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Total',
+              Text(
+                l10n.totalLabel,
                 style: TextStyle(
                   color: AppColors.checkoutInk,
                   fontWeight: FontWeight.w900,
@@ -491,7 +554,7 @@ class _CartPanel extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: cart.isEmpty ? null : onCheckout,
               icon: const Icon(Icons.arrow_forward_rounded),
-              label: const Text('Passer au paiement'),
+              label: Text(l10n.proceedToPayment),
             ),
           ),
         ],
@@ -566,6 +629,7 @@ class _MobileCartBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
@@ -573,7 +637,7 @@ class _MobileCartBar extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                ' articles - ',
+                l10n.cartItemCount(count),
                 style: const TextStyle(
                   color: AppColors.checkoutInk,
                   fontWeight: FontWeight.w900,
@@ -583,7 +647,7 @@ class _MobileCartBar extends StatelessWidget {
             FilledButton.icon(
               onPressed: onCheckout,
               icon: const Icon(Icons.payment_rounded),
-              label: const Text('Encaisser'),
+              label: Text(l10n.checkout),
             ),
           ],
         ),
@@ -599,25 +663,26 @@ class _SyncBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final (icon, label, color) = switch (status) {
       SyncStatus.synced => (
           Icons.cloud_done_outlined,
-          'SynchronisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©',
+          l10n.synced,
           AppColors.success,
         ),
       SyncStatus.pending => (
           Icons.cloud_upload_outlined,
-          'En attente',
+          l10n.pending,
           AppColors.warning,
         ),
       SyncStatus.offline => (
           Icons.cloud_off_outlined,
-          'Hors ligne',
+          l10n.offline,
           AppColors.checkoutMuted,
         ),
       SyncStatus.conflict => (
           Icons.sync_problem_outlined,
-          'Conflit',
+          l10n.conflict,
           Theme.of(context).colorScheme.error,
         ),
     };

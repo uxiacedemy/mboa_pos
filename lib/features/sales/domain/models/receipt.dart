@@ -4,6 +4,7 @@ class ReceiptData {
   final String organizationName;
   final String organizationNiu;
   final String organizationAddress;
+  final String organizationId;
   final String cashierName;
   final List<ReceiptLine> items;
   final int subtotalFCFA;
@@ -14,6 +15,10 @@ class ReceiptData {
   final int totalFCFA;
   final String paymentMethod;
   final String? paymentReference;
+  final bool isFiscal;
+  final bool isProvisional;
+  final bool issuedAtIsServer;
+  final String syncStatus;
 
   const ReceiptData({
     required this.receiptNumber,
@@ -21,6 +26,7 @@ class ReceiptData {
     required this.organizationName,
     required this.organizationNiu,
     required this.organizationAddress,
+    this.organizationId = '',
     required this.cashierName,
     required this.items,
     required this.subtotalFCFA,
@@ -31,6 +37,10 @@ class ReceiptData {
     required this.totalFCFA,
     required this.paymentMethod,
     this.paymentReference,
+    this.isFiscal = false,
+    this.isProvisional = false,
+    this.issuedAtIsServer = false,
+    this.syncStatus = 'synced',
   });
 
   factory ReceiptData.fromJson(Map<String, dynamic> json) {
@@ -40,6 +50,7 @@ class ReceiptData {
       organizationName: json['organizationName'] as String,
       organizationNiu: json['organizationNiu'] as String,
       organizationAddress: json['organizationAddress'] as String,
+      organizationId: json['organizationId'] as String? ?? '',
       cashierName: json['cashierName'] as String,
       items: (json['items'] as List)
           .map((item) =>
@@ -53,6 +64,10 @@ class ReceiptData {
       totalFCFA: json['totalFCFA'] as int,
       paymentMethod: json['paymentMethod'] as String,
       paymentReference: json['paymentReference'] as String?,
+      isFiscal: json['isFiscal'] as bool? ?? false,
+      isProvisional: json['isProvisional'] as bool? ?? false,
+      issuedAtIsServer: json['issuedAtIsServer'] as bool? ?? false,
+      syncStatus: json['syncStatus'] as String? ?? 'synced',
     );
   }
 
@@ -62,6 +77,7 @@ class ReceiptData {
         'organizationName': organizationName,
         'organizationNiu': organizationNiu,
         'organizationAddress': organizationAddress,
+        'organizationId': organizationId,
         'cashierName': cashierName,
         'items': items.map((item) => item.toJson()).toList(),
         'subtotalFCFA': subtotalFCFA,
@@ -72,6 +88,10 @@ class ReceiptData {
         'totalFCFA': totalFCFA,
         'paymentMethod': paymentMethod,
         'paymentReference': paymentReference,
+        'isFiscal': isFiscal,
+        'isProvisional': isProvisional,
+        'issuedAtIsServer': issuedAtIsServer,
+        'syncStatus': syncStatus,
       };
 }
 

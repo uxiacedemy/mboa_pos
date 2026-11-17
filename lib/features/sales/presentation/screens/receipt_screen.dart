@@ -26,6 +26,16 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   Future<Uint8List> _buildPdf(PdfPageFormat format) async {
     final receipt = widget.receipt;
+    final l10n = AppLocalizations.of(context)!;
+    final organizationName = receipt.organizationName.isEmpty
+        ? l10n.organizationNameMissing
+        : receipt.organizationName;
+    final organizationNiu = receipt.organizationNiu.isEmpty
+        ? l10n.organizationNiuMissing
+        : receipt.organizationNiu;
+    final organizationAddress = receipt.organizationAddress.isEmpty
+        ? l10n.organizationAddressMissing
+        : receipt.organizationAddress;
     final document = pw.Document();
     document.addPage(
       pw.MultiPage(
@@ -34,23 +44,34 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         build: (context) => [
           pw.Center(
             child: pw.Text(
-              receipt.organizationName,
+              organizationName,
               style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 4),
-          pw.Center(child: pw.Text('NIU: ${receipt.organizationNiu}')),
-          pw.Center(child: pw.Text(receipt.organizationAddress)),
+          pw.Center(
+              child: pw.Text('${l10n.organizationNiu}: $organizationNiu')),
+          pw.Center(child: pw.Text(organizationAddress)),
           pw.SizedBox(height: 12),
           pw.Divider(),
-          _pdfRow('ReÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§u NÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°',
-              receipt.receiptNumber),
-          _pdfRow(
-              'Date', DateFormat('dd/MM/yyyy HH:mm').format(receipt.issuedAt)),
-          _pdfRow('Caissier', receipt.cashierName),
+          if (receipt.isProvisional)
+            pw.Center(child: pw.Text(l10n.receiptProvisional)),
+          if (receipt.syncStatus == 'needsReview')
+            pw.Center(child: pw.Text(l10n.receiptNeedsReview)),
+          if (!receipt.isFiscal)
+            pw.Center(child: pw.Text(l10n.receiptNotFiscal)),
+          _pdfRow(l10n.receiptNumber, receipt.receiptNumber),
+          _pdfRow(l10n.date,
+              DateFormat('dd/MM/yyyy HH:mm').format(receipt.issuedAt)),
+          _pdfRow(l10n.cashier, receipt.cashierName),
           pw.SizedBox(height: 10),
           pw.TableHelper.fromTextArray(
-            headers: const ['Produit', 'QtÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©', 'Prix', 'Total'],
+            headers: [
+              l10n.products,
+              l10n.quantity,
+              l10n.unitPrice,
+              l10n.total,
+            ],
             data: [
               for (final item in receipt.items)
                 [
@@ -70,23 +91,22 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           ),
           pw.SizedBox(height: 10),
           pw.Divider(),
-          _pdfRow('Sous-total HT', _money(receipt.subtotalFCFA)),
+          _pdfRow(l10n.subtotal, _money(receipt.subtotalFCFA)),
           if (receipt.discountFCFA > 0)
-            _pdfRow('Remise', '- ${_money(receipt.discountFCFA)}'),
+            _pdfRow(l10n.discount, '- ${_money(receipt.discountFCFA)}'),
           if (receipt.taxFCFA > 0)
-            _pdfRow('Taxe (${(receipt.taxRate * 100).toStringAsFixed(2)}%)',
+            _pdfRow(l10n.receiptTax((receipt.taxRate * 100).toStringAsFixed(2)),
                 _money(receipt.taxFCFA)),
           if (receipt.deliveryFCFA > 0)
-            _pdfRow('Livraison', _money(receipt.deliveryFCFA)),
+            _pdfRow(l10n.delivery, _money(receipt.deliveryFCFA)),
           pw.Divider(),
-          _pdfRow('TOTAL TTC', _money(receipt.totalFCFA), bold: true),
-          _pdfRow('Paiement', receipt.paymentMethod),
+          _pdfRow(l10n.total, _money(receipt.totalFCFA), bold: true),
+          _pdfRow(l10n.payment, receipt.paymentMethod),
           if (receipt.paymentReference != null &&
               receipt.paymentReference!.isNotEmpty)
-            _pdfRow('RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rence',
-                receipt.paymentReference!),
+            _pdfRow(l10n.paymentReference, receipt.paymentReference!),
           pw.SizedBox(height: 18),
-          pw.Center(child: pw.Text('Merci de votre visite !')),
+          pw.Center(child: pw.Text(l10n.thankYou)),
         ],
       ),
     );
@@ -260,6 +280,15 @@ class _ReceiptPaper extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
+    final organizationName = receipt.organizationName.isEmpty
+        ? l10n.organizationNameMissing
+        : receipt.organizationName;
+    final organizationNiu = receipt.organizationNiu.isEmpty
+        ? l10n.organizationNiuMissing
+        : receipt.organizationNiu;
+    final organizationAddress = receipt.organizationAddress.isEmpty
+        ? l10n.organizationAddressMissing
+        : receipt.organizationAddress;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -271,15 +300,25 @@ class _ReceiptPaper extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(receipt.organizationName,
+          Text(organizationName,
               textAlign: TextAlign.center,
               style: AppTypography.titleLarge
                   .copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: AppSpacing.xs),
-          Text('${l10n.organizationNiu}: ${receipt.organizationNiu}',
+          Text('${l10n.organizationNiu}: $organizationNiu',
               textAlign: TextAlign.center, style: AppTypography.bodySmall),
-          Text(receipt.organizationAddress,
+          Text(organizationAddress,
               textAlign: TextAlign.center, style: AppTypography.bodySmall),
+          if (receipt.isProvisional ||
+              receipt.syncStatus == 'needsReview' ||
+              !receipt.isFiscal) ...[
+            const SizedBox(height: AppSpacing.sm),
+            if (receipt.isProvisional)
+              _ReceiptStatus(text: l10n.receiptProvisional),
+            if (receipt.syncStatus == 'needsReview')
+              _ReceiptStatus(text: l10n.receiptNeedsReview),
+            if (!receipt.isFiscal) _ReceiptStatus(text: l10n.receiptNotFiscal),
+          ],
           const SizedBox(height: AppSpacing.md),
           const _Divider(),
           _InfoRow(label: l10n.receiptNumber, value: receipt.receiptNumber),
@@ -300,8 +339,7 @@ class _ReceiptPaper extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(item.name, style: AppTypography.bodyMedium),
-                          Text(
-                              '${item.quantity} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${_fmt(item.unitPriceFCFA)}',
+                          Text('${item.quantity} × ${_fmt(item.unitPriceFCFA)}',
                               style: AppTypography.bodySmall.copyWith(
                                   color: colorScheme.onSurfaceVariant)),
                         ],
@@ -324,7 +362,8 @@ class _ReceiptPaper extends StatelessWidget {
                 valueColor: AppColors.success),
           if (receipt.taxFCFA > 0)
             _InfoRow(
-                label: l10n.tax((receipt.taxRate * 100).toStringAsFixed(2)),
+                label:
+                    l10n.receiptTax((receipt.taxRate * 100).toStringAsFixed(2)),
                 value: _fmt(receipt.taxFCFA)),
           if (receipt.deliveryFCFA > 0)
             _InfoRow(label: l10n.delivery, value: _fmt(receipt.deliveryFCFA)),
@@ -359,6 +398,30 @@ class _ReceiptPaper extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ReceiptStatus extends StatelessWidget {
+  const _ReceiptStatus({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+        padding: const EdgeInsets.all(AppSpacing.xs),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.tertiaryContainer,
+          borderRadius: AppRadius.input,
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: AppTypography.bodySmall.copyWith(
+            color: Theme.of(context).colorScheme.onTertiaryContainer,
+          ),
+        ),
+      );
 }
 
 class _Divider extends StatelessWidget {
