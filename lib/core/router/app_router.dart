@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +18,7 @@ import '../../features/storyboard/presentation/screens/storyboard_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _RouterRefreshNotifier();
+  String? lastRedirectState;
   ref.listen(authProvider, (_, __) => refreshNotifier.refresh());
   ref.listen(firstRunWelcomeProvider, (_, __) => refreshNotifier.refresh());
   final router = GoRouter(
@@ -26,6 +29,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final authStatus = ref.read(authStatusProvider);
       final welcomeState = ref.read(firstRunWelcomeProvider);
       final path = state.uri.path;
+      final welcomeStatus = welcomeState.when(
+        loading: () => 'loading',
+        error: (_, __) => 'error',
+        data: (completed) => completed ? 'completed' : 'new',
+      );
+      final redirectState = '$path auth=$authStatus welcome=$welcomeStatus';
+      if (kDebugMode && redirectState != lastRedirectState) {
+        developer.log(
+          'Router redirect evaluated: $redirectState',
+          name: 'mboapos.startup',
+        );
+        debugPrint(
+            '[mboapos.startup] Router redirect evaluated: $redirectState');
+        lastRedirectState = redirectState;
+      }
       final protected = path == '/pos' ||
           path == '/inventory' ||
           path == '/reports' ||
@@ -38,7 +56,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/login',
         '/register',
       };
-      if (authStatus == AuthStatus.unknown || welcomeState.isLoading) {
+      if (authStatus == AuthStatus.unknown ||
+          authStatus == AuthStatus.error ||
+          welcomeState.isLoading) {
         return path == '/startup' ? null : '/startup';
       }
       if (welcomeState.hasError) {
@@ -48,7 +68,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (staffUser == null) {
         final welcomeCompleted = welcomeState.requireValue;
         if (!welcomeCompleted && path != '/welcome') return '/welcome';
-        if (welcomeCompleted && path == '/welcome') return '/entry';
+        if (welcomeCompleted && (path == '/welcome' || path == '/startup')) {
+          return '/entry';
+        }
         if (protected) return '/entry';
       }
       if (path == '/reports' &&

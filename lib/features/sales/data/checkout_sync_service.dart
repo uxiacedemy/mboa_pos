@@ -187,9 +187,10 @@ class CheckoutSyncService {
           'type': 'saleDeduction',
           'actorId': payload['actorId'],
           'deviceId': payload['deviceId'],
-          'occurredAt': occurredAt ?? (payload['localReceipt'] is Map
-              ? (payload['localReceipt'] as Map)['issuedAt']
-              : null),
+          'occurredAt': occurredAt ??
+              (payload['localReceipt'] is Map
+                  ? (payload['localReceipt'] as Map)['issuedAt']
+                  : null),
           'syncStatus': synced ? 'synced' : 'pending',
         },
     ];

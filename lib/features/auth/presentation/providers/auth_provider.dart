@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -12,7 +13,7 @@ import '../../../../l10n/app_localizations.dart';
 import '../../domain/models/staff_user.dart';
 import '../../../sales/data/checkout_sync_service.dart';
 
-enum AuthStatus { unknown, unauthenticated, authenticated }
+enum AuthStatus { unknown, unauthenticated, authenticated, error }
 
 final authProvider =
     AsyncNotifierProvider<AuthNotifier, StaffUser?>(AuthNotifier.new);
@@ -21,7 +22,7 @@ final authStatusProvider = Provider<AuthStatus>((ref) {
   final auth = ref.watch(authProvider);
   return auth.when(
     loading: () => AuthStatus.unknown,
-    error: (_, __) => AuthStatus.unauthenticated,
+    error: (_, __) => AuthStatus.error,
     data: (user) =>
         user == null ? AuthStatus.unauthenticated : AuthStatus.authenticated,
   );
@@ -105,11 +106,18 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
 
   @override
   Future<StaffUser?> build() async {
+    _logStartup('Authentication restoration started');
     try {
       final user =
           await _auth.authStateChanges().first.timeout(_authRequestTimeout);
-      if (user == null) return null;
-      return await _sessionForUser(user).timeout(_authRequestTimeout);
+      if (user == null) {
+        _logStartup('Authentication restoration completed: signed out');
+        return null;
+      }
+      _logStartup('Authentication restoration found a signed-in user');
+      final session = await _sessionForUser(user).timeout(_authRequestTimeout);
+      _logStartup('Authentication session restoration completed');
+      return session;
     } on TimeoutException catch (error, stackTrace) {
       developer.log(
         'Timed out restoring the authentication session',
@@ -117,7 +125,7 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
         error: error,
         stackTrace: stackTrace,
       );
-      return null;
+      throw const AuthFailure(AuthFailureCode.networkUnavailable);
     } on AuthFailure catch (error, stackTrace) {
       developer.log(
         'Could not restore the authentication session',
@@ -125,10 +133,7 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
         error: error,
         stackTrace: stackTrace,
       );
-      // Keep an incomplete owner registration signed in so it can be resumed
-      // from the registration screen. Protected routes remain unavailable
-      // until the backend provisions and verifies the organization membership.
-      return null;
+      rethrow;
     } on Object catch (error, stackTrace) {
       developer.log(
         'Unexpected authentication session restoration failure',
@@ -136,7 +141,7 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
         error: error,
         stackTrace: stackTrace,
       );
-      return null;
+      rethrow;
     }
   }
 
@@ -250,6 +255,7 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
     bool ownerOnly = false,
   }) async {
     final token = await user.getIdTokenResult(true);
+    _logStartup('Authentication token claims loaded');
     final claims = token.claims ?? const <String, dynamic>{};
     final organizationId = claims['organizationId'] as String?;
     final roleName = claims['role'] as String?;
@@ -268,10 +274,14 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
       throw const AuthFailure(AuthFailureCode.disabled);
     }
     final role = StaffRole.values.firstWhere((value) => value.name == roleName);
+    _logStartup('Organization membership verification started');
     await _verifyMembership(user.uid, organizationId, role);
+    _logStartup('Organization membership verification completed');
     final session =
         StaffUser(uid: user.uid, organizationId: organizationId, role: role);
+    _logStartup('Secure-storage device ID read started');
     final deviceId = await ref.read(deviceIdProvider.future);
+    _logStartup('Secure-storage device ID read completed');
     unawaited(CheckoutSyncService().syncPending(
       organizationId: organizationId,
       actorId: user.uid,
@@ -315,5 +325,12 @@ class AuthNotifier extends AsyncNotifier<StaffUser?> {
   Future<void> signOut() async {
     await _auth.signOut();
     state = const AsyncData(null);
+  }
+}
+
+void _logStartup(String message) {
+  if (kDebugMode) {
+    developer.log(message, name: 'mboapos.startup');
+    debugPrint('[mboapos.startup] $message');
   }
 }

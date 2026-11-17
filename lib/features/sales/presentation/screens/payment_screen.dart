@@ -286,7 +286,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     }
     final rawLines = response['lines'];
     if (rawLines is! List || rawLines.isEmpty) {
-      throw StateError('The server did not return authoritative receipt lines.');
+      throw StateError(
+          'The server did not return authoritative receipt lines.');
     }
     final lines = <ReceiptLine>[];
     for (final rawLine in rawLines) {

@@ -245,10 +245,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backToEntry => 'Choose another option';
 
   @override
-  String get entryLoadingError => 'Couldn\'t prepare the welcome screen.';
+  String get entryLoadingError =>
+      'Couldn\'t prepare startup. Check your connection or storage, then try again.';
 
   @override
   String get entryRetry => 'Retry';
+
+  @override
+  String get entryContinueToSignIn => 'Continue to sign in';
 
   @override
   String get authWelcome => 'Welcome to MboaPOS';

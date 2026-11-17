@@ -246,10 +246,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get entryLoadingError =>
-      'Impossible de préparer l’écran de démarrage.';
+      'Impossible de préparer le démarrage. Vérifiez la connexion ou le stockage, puis réessayez.';
 
   @override
   String get entryRetry => 'Réessayer';
+
+  @override
+  String get entryContinueToSignIn => 'Continuer vers la connexion';
 
   @override
   String get authWelcome => 'Bienvenue sur MboaPOS';

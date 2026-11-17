@@ -81,4 +81,4 @@ Web uses the release-matched Drift worker and SQLite WASM assets.
 - Firebase auth requires a valid session; offline sign-in and device recovery
   behavior have not been validated on the target Android device.
 - Emulator and APK builds are not substitutes for staging rules review,
-  merchant fiscal verification, or a physical Android offline test.
+  merchant fiscal verification, or an Android 10/720p/2 GB offline test.

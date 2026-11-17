@@ -551,7 +551,7 @@ abstract class AppLocalizations {
   /// No description provided for @entryLoadingError.
   ///
   /// In fr, this message translates to:
-  /// **'Impossible de préparer l’écran de démarrage.'**
+  /// **'Impossible de préparer le démarrage. Vérifiez la connexion ou le stockage, puis réessayez.'**
   String get entryLoadingError;
 
   /// No description provided for @entryRetry.
@@ -559,6 +559,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Réessayer'**
   String get entryRetry;
+
+  /// No description provided for @entryContinueToSignIn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer vers la connexion'**
+  String get entryContinueToSignIn;
 
   /// No description provided for @authWelcome.
   ///

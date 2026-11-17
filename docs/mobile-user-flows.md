@@ -58,7 +58,11 @@ build does not imply a production deployment or fiscal certification.
   checkout concurrency/idempotency, tax authority, active-role checks,
   field-level settings permissions, cross-tenant access, and transaction
   immutability.
-- Web and Android debug builds pass. A physical Android device/emulator was not
-  available for runtime/offline validation.
+- Web and Android debug builds pass. Runtime startup was verified on the
+  connected Samsung SM-G950F (Android 9/API 28): Firebase initialized,
+  authentication restored as signed out, secure storage resolved, and the
+  repaired startup route reached account selection. Android 9 was not the
+  intended Android 10 baseline, and offline sign-in/production checkout remain
+  unverified.
 - Production Firebase callables/rules and a browser authenticated checkout have
   not been verified.

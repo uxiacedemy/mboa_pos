@@ -68,8 +68,7 @@ class SettingsScreen extends ConsumerWidget {
             data: (value) => value.isServerConfigured
                 ? _OrganizationSettingsForm(settings: value)
                 : _SettingsError(
-                    onRetry: () =>
-                        ref.invalidate(organizationSettingsProvider),
+                    onRetry: () => ref.invalidate(organizationSettingsProvider),
                   ),
           ),
           const SizedBox(height: AppSpacing.xl),

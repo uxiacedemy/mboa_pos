@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mboa_pos/core/router/app_router.dart';
 import 'package:mboa_pos/features/auth/domain/models/staff_user.dart';
 import 'package:mboa_pos/features/auth/presentation/providers/auth_provider.dart';
@@ -10,6 +11,7 @@ import 'package:mboa_pos/features/auth/presentation/providers/entry_flow_provide
 import 'package:mboa_pos/features/auth/presentation/screens/entry_flow_screens.dart';
 import 'package:mboa_pos/features/auth/presentation/screens/login_screen.dart';
 import 'package:mboa_pos/l10n/app_localizations.dart';
+import 'package:mboa_pos/main.dart';
 
 class _DeferredAuthNotifier extends AuthNotifier {
   _DeferredAuthNotifier(this.result);
@@ -139,5 +141,79 @@ void main() {
     expect(container.read(appRouterProvider), same(router));
     expect(find.text('Bienvenue sur MboaPOS'), findsOneWidget);
     expect(find.text('Continuer'), findsOneWidget);
+  });
+
+  testWidgets('returning signed-out startup reaches account selection',
+      (tester) async {
+    final authResult = Completer<StaffUser?>();
+    final welcomeResult = Completer<bool>();
+    final container = ProviderContainer(
+      overrides: [
+        authProvider
+            .overrideWith(() => _DeferredAuthNotifier(authResult.future)),
+        firstRunWelcomeProvider
+            .overrideWith(() => _DeferredWelcomeNotifier(welcomeResult.future)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final router = container.read(appRouterProvider);
+    await tester.binding.setSurfaceSize(const Size(550, 700));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('fr'),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(EntryStartupScreen), findsOneWidget);
+
+    authResult.complete(null);
+    welcomeResult.complete(true);
+    await tester.pumpAndSettle();
+
+    expect(container.read(appRouterProvider), same(router));
+    expect(find.byType(EntryChoiceScreen), findsOneWidget);
+    expect(find.text('Comment souhaitez-vous continuer ?'), findsOneWidget);
+    expect(find.text('Connexion de l’équipe'), findsOneWidget);
+  });
+
+  testWidgets('Firebase initialization error can be retried', (tester) async {
+    var attempts = 0;
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const Text('Firebase ready'),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [appRouterProvider.overrideWithValue(router)],
+        child: MboaPOSApp(
+          firebaseInitialization: () async {
+            attempts++;
+            return attempts == 1 ? StateError('firebase failed') : null;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FirebaseStartupErrorScreen), findsOneWidget);
+    expect(find.text('Réessayer'), findsOneWidget);
+    await tester.tap(find.text('Réessayer'));
+    await tester.pumpAndSettle();
+
+    expect(attempts, 2);
+    expect(find.text('Firebase ready'), findsOneWidget);
   });
 }

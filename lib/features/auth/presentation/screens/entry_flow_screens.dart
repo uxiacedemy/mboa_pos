@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -243,11 +244,24 @@ class EntryStartupScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final authState = ref.watch(authProvider);
     final welcomeState = ref.watch(firstRunWelcomeProvider);
+    final startupError =
+        authState.hasError ? authState.error : welcomeState.error;
+    final authStatus = authState.when(
+      loading: () => 'loading',
+      error: (_, __) => 'error',
+      data: (user) => user == null ? 'signed out' : 'authenticated',
+    );
+    final welcomeStatus = welcomeState.when(
+      loading: () => 'loading',
+      error: (_, __) => 'error',
+      data: (completed) => completed ? 'completed' : 'new',
+    );
     return Scaffold(
       backgroundColor: AppColors.checkoutCanvas,
       body: Center(
-        child: welcomeState.hasError
+        child: authState.hasError || welcomeState.hasError
             ? Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
@@ -257,6 +271,14 @@ class EntryStartupScreen extends ConsumerWidget {
                       l10n.entryLoadingError,
                       textAlign: TextAlign.center,
                     ),
+                    if (kDebugMode && startupError != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        startupError.toString(),
+                        textAlign: TextAlign.center,
+                        style: AppTypography.bodySmall,
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.md),
                     OutlinedButton(
                       onPressed: () {
@@ -265,10 +287,41 @@ class EntryStartupScreen extends ConsumerWidget {
                       },
                       child: Text(l10n.entryRetry),
                     ),
+                    if (authState.hasError) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      TextButton(
+                        onPressed: () async {
+                          try {
+                            await ref.read(authProvider.notifier).signOut();
+                            if (context.mounted) context.go('/entry');
+                          } on Object catch (error, stackTrace) {
+                            developer.log(
+                              'Could not clear the invalid session',
+                              name: 'mboapos.auth',
+                              error: error,
+                              stackTrace: stackTrace,
+                            );
+                          }
+                        },
+                        child: Text(l10n.entryContinueToSignIn),
+                      ),
+                    ],
                   ],
                 ),
               )
-            : const CircularProgressIndicator(),
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Startup state: auth=$authStatus, welcome=$welcomeStatus',
+                      style: AppTypography.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
       ),
     );
   }
